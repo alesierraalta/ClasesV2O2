@@ -8,9 +8,9 @@
     <!-- Debug message -->
     <script>console.log("Base template loaded successfully");</script>
     <!-- Favicon -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
-    <link rel="icon" href="{{ url_for('static', filename='img/o2-logo-simple.svg') }}" type="image/svg+xml">
-    <link rel="alternate icon" href="{{ url_for('static', filename='img/o2-logo.png') }}" type="image/png">
+    <link rel="icon" href="{{ url_for('static', filename='img/images/Logos-10.png') }}" sizes="any">
+    <link rel="icon" href="{{ url_for('static', filename='img/images/Logos-10.png') }}" type="image/png">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/images/Logos-10.png') }}">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -121,9 +121,33 @@
 
         /* O2 Logo styles */
         .o2-logo {
-            height: 28px;
+            height: 90px;
             width: auto;
-            margin-right: 6px;
+            margin: 0;
+            padding: 0;
+            object-fit: contain;
+            max-width: 100%;
+        }
+        
+        /* iOS Navigation Bar adjustments */
+        .navbar.ios-navbar {
+            padding: 0;
+        }
+        
+        .navbar.ios-navbar .container-fluid {
+            padding: 0;
+        }
+        
+        .navbar.ios-navbar .fw-bold {
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* O2 Tab logo */
+        .tab-icon {
+            height: 32px;
+            margin-bottom: 2px;
+            object-fit: contain;
         }
     </style>
     
@@ -137,9 +161,8 @@
                 <a id="backButton" href="javascript:history.back()" class="text-dark d-none">
                     <i class="fas fa-chevron-left me-1"></i>
                 </a>
-                <span class="fw-bold fs-6 d-block text-center w-100">
-                    <img src="{{ url_for('static', filename='img/o2-logo-simple.svg') }}" alt="O2 Logo" class="o2-logo">
-                    {% block nav_title %}O2 Fitness Club{% endblock %}
+                <span class="text-center w-100 m-0 p-0">
+                    <img src="{{ url_for('static', filename='img/images/Logos-11.png') }}" alt="O2 Logo" class="o2-logo">
                 </span>
                 <div class="invisible">
                     <i class="fas fa-chevron-left"></i>
@@ -148,7 +171,7 @@
         </div>
     </nav>
 
-    <div class="container-fluid mt-5 pt-2">
+    <div class="container-fluid mt-3 pt-5">
         <div class="row">
             <!-- Contenido principal -->
             <main class="col-12 px-md-4 py-4">
@@ -176,7 +199,7 @@
             <div class="row text-center g-0">
                 <div class="col">
                     <a href="{{ url_for('index') }}" class="ios-tab-item {% if request.path == url_for('index') %}active{% endif %}">
-                        <img src="{{ url_for('static', filename='img/o2-logo-simple.svg') }}" alt="O2" style="height: 24px; margin-bottom: 2px;" class="tab-icon">
+                        <img src="{{ url_for('static', filename='img/images/Logos-10.png') }}" alt="O2" class="tab-icon">
                         <span class="ios-tab-label">Inicio</span>
                     </a>
                 </div>
