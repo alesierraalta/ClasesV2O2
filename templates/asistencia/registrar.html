@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Asistencia - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('control_asistencia') }}">Control de Asistencia</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Registrar Asistencia</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Registrar Asistencia: {{ horario.nombre }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="alert alert-info">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Fecha:</strong> {{ hoy.strftime('%d/%m/%Y') }}</p>
+                                    <p class="mb-1"><strong>Horario:</strong> {{ horario.hora_inicio.strftime('%H:%M') }} - {{ horario.hora_fin_str() }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Profesor:</strong> {{ horario.profesor.nombre }} {{ horario.profesor.apellido }}</p>
+                                    <p class="mb-1"><strong>Capacidad máxima:</strong> {{ horario.capacidad_maxima }} alumnos</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('registrar_asistencia', horario_id=horario.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <!-- Estado de la clase -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Estado de la clase*</label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="estado_clase" id="estado_normal" value="normal" checked>
+                                        <label class="form-check-label" for="estado_normal">
+                                            <span class="badge bg-success me-1">Normal</span> Impartida por el profesor titular
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="estado_clase" id="estado_suplencia" value="suplencia">
+                                        <label class="form-check-label" for="estado_suplencia">
+                                            <span class="badge bg-info me-1">Suplencia</span> Impartida por otro profesor
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="estado_clase" id="estado_cancelada" value="cancelada">
+                                        <label class="form-check-label" for="estado_cancelada">
+                                            <span class="badge bg-danger me-1">Cancelada</span> No se impartió la clase
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Secciones condicionales según el estado -->
+                        <div id="seccion_normal" class="mb-4 estado-seccion">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="hora_llegada" class="form-label">Hora de llegada del profesor</label>
+                                    <input type="time" class="form-control" id="hora_llegada" name="hora_llegada">
+                                    <div class="form-text">Dejar en blanco si no se registró la hora exacta.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="cantidad_alumnos" class="form-label">Cantidad de alumnos *</label>
+                                    <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" min="0" max="{{ horario.capacidad_maxima }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="seccion_suplencia" class="mb-4 estado-seccion" style="display: none;">
+                            <div class="card border-info">
+                                <div class="card-header bg-info bg-opacity-10">
+                                    <h5 class="mb-0">Información del profesor suplente</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="profesor_suplente" class="form-label">Profesor suplente*</label>
+                                            <select class="form-select" id="profesor_suplente" name="profesor_suplente">
+                                                <option value="">Seleccione un profesor</option>
+                                                {% for profesor in profesores %}
+                                                    {% if profesor.id != horario.profesor.id %}
+                                                    <option value="{{ profesor.id }}">{{ profesor.nombre }} {{ profesor.apellido }}</option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="hora_llegada_suplente" class="form-label">Hora de llegada del suplente</label>
+                                            <input type="time" class="form-control" id="hora_llegada_suplente" name="hora_llegada_suplente">
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="cantidad_alumnos_suplencia" class="form-label">Cantidad de alumnos *</label>
+                                            <input type="number" class="form-control" id="cantidad_alumnos_suplencia" name="cantidad_alumnos_suplencia" min="0" max="{{ horario.capacidad_maxima }}">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="motivo_suplencia" class="form-label">Motivo de la suplencia</label>
+                                            <select class="form-select" id="motivo_suplencia" name="motivo_suplencia">
+                                                <option value="enfermedad">Enfermedad</option>
+                                                <option value="imprevisto">Imprevisto</option>
+                                                <option value="compromiso">Compromiso previo</option>
+                                                <option value="otro">Otro</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="seccion_cancelada" class="mb-4 estado-seccion" style="display: none;">
+                            <div class="card border-danger">
+                                <div class="card-header bg-danger bg-opacity-10">
+                                    <h5 class="mb-0">Información de la clase cancelada</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="motivo_ausencia" class="form-label">Motivo de cancelación*</label>
+                                            <select class="form-select" id="motivo_ausencia" name="motivo_ausencia">
+                                                <option value="enfermedad">Enfermedad del profesor</option>
+                                                <option value="falta">Ausencia sin aviso</option>
+                                                <option value="imprevisto">Imprevisto personal</option>
+                                                <option value="instalacion">Problema con instalaciones</option>
+                                                <option value="clima">Condiciones climáticas</option>
+                                                <option value="otro">Otro</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="aviso_alumnos" class="form-label">¿Se avisó a los alumnos?</label>
+                                            <select class="form-select" id="aviso_alumnos" name="aviso_alumnos">
+                                                <option value="si">Sí, con antelación</option>
+                                                <option value="ultimo_momento">Sí, a último momento</option>
+                                                <option value="no">No se pudo avisar</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" rows="3" placeholder="Ingrese observaciones adicionales si es necesario..."></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('control_asistencia') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Establecer la hora actual como valor predeterminado
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('hora_llegada').value = `${hours}:${minutes}`;
+        document.getElementById('hora_llegada_suplente').value = `${hours}:${minutes}`;
+        
+        // Manejar cambios en el estado de la clase
+        const estadoInputs = document.querySelectorAll('input[name="estado_clase"]');
+        const secciones = document.querySelectorAll('.estado-seccion');
+        
+        function actualizarSecciones() {
+            const estadoActual = document.querySelector('input[name="estado_clase"]:checked').value;
+            
+            secciones.forEach(seccion => {
+                seccion.style.display = 'none';
+            });
+            
+            document.getElementById(`seccion_${estadoActual}`).style.display = 'block';
+            
+            // Ajustar campos requeridos
+            if (estadoActual === 'normal') {
+                document.getElementById('cantidad_alumnos').setAttribute('required', '');
+                if (document.getElementById('cantidad_alumnos_suplencia')) {
+                    document.getElementById('cantidad_alumnos_suplencia').removeAttribute('required');
+                }
+                if (document.getElementById('profesor_suplente')) {
+                    document.getElementById('profesor_suplente').removeAttribute('required');
+                }
+                if (document.getElementById('motivo_ausencia')) {
+                    document.getElementById('motivo_ausencia').removeAttribute('required');
+                }
+            } else if (estadoActual === 'suplencia') {
+                document.getElementById('cantidad_alumnos').removeAttribute('required');
+                document.getElementById('cantidad_alumnos_suplencia').setAttribute('required', '');
+                document.getElementById('profesor_suplente').setAttribute('required', '');
+                if (document.getElementById('motivo_ausencia')) {
+                    document.getElementById('motivo_ausencia').removeAttribute('required');
+                }
+            } else if (estadoActual === 'cancelada') {
+                document.getElementById('cantidad_alumnos').removeAttribute('required');
+                if (document.getElementById('cantidad_alumnos_suplencia')) {
+                    document.getElementById('cantidad_alumnos_suplencia').removeAttribute('required');
+                }
+                if (document.getElementById('profesor_suplente')) {
+                    document.getElementById('profesor_suplente').removeAttribute('required');
+                }
+                document.getElementById('motivo_ausencia').setAttribute('required', '');
+            }
+        }
+        
+        estadoInputs.forEach(input => {
+            input.addEventListener('change', actualizarSecciones);
+        });
+        
+        // Inicializar secciones
+        actualizarSecciones();
+    });
+</script>
+{% endblock %} 

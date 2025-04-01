@@ -1,0 +1,195 @@
+/* iOS Design System */
+:root {
+  --ios-system-blue: #007AFF;
+  --ios-system-green: #34C759;
+  --ios-system-red: #FF3B30;
+  --ios-system-gray-6: #F2F2F7;
+  --ios-label-primary: #000000;
+  --ios-fill-tertiary: #E5E5EA;
+  --ios-border: #C6C6C8;
+  --ios-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+  background-color: var(--ios-system-gray-6);
+  padding-bottom: 70px; /* Space for bottom tab bar */
+}
+
+/* iOS Tab Bar Navigation */
+.ios-tab-bar {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--ios-border);
+  padding: 8px 0;
+  box-shadow: 0 -2px 20px rgba(0,0,0,0.05);
+  z-index: 1030;
+}
+
+.ios-tab-item {
+  color: #8E8E93;
+  text-decoration: none;
+  padding: 8px 0;
+  display: block;
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+.ios-tab-item.active {
+  color: var(--ios-system-blue);
+}
+
+.ios-tab-item i {
+  font-size: 1.4rem;
+  display: block;
+  margin-bottom: 2px;
+  transition: transform 0.2s ease;
+}
+
+.ios-tab-item:active i {
+  transform: scale(0.9);
+}
+
+.ios-tab-label {
+  font-size: 0.76rem;
+  font-weight: 500;
+  display: block;
+  letter-spacing: -0.01em;
+}
+
+/* iOS Card Components */
+.ios-card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  border: 0.5px solid var(--ios-border);
+  overflow: hidden;
+  margin-bottom: 16px;
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.ios-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+}
+
+.ios-card-header {
+  padding: 16px;
+  border-bottom: 0.5px solid var(--ios-border);
+}
+
+.ios-card-body {
+  padding: 16px;
+}
+
+/* iOS Buttons */
+.ios-button {
+  background: var(--ios-system-blue);
+  border-radius: 10px;
+  color: white !important;
+  padding: 8px 16px;
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.ios-button:hover {
+  opacity: 0.9;
+}
+
+.ios-button:active {
+  transform: scale(0.96);
+  opacity: 0.8;
+}
+
+.ios-button-success {
+  background: var(--ios-system-green);
+}
+
+.ios-button-danger {
+  background: var(--ios-system-red);
+}
+
+/* iOS Table Styles */
+.ios-table {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  border: 0.5px solid var(--ios-border);
+}
+
+.ios-table th {
+  background-color: var(--ios-system-gray-6);
+  font-weight: 500;
+  padding: 14px 16px;
+  font-size: 0.9rem;
+}
+
+.ios-table td {
+  padding: 14px 16px;
+  border-bottom: 0.5px solid var(--ios-border);
+}
+
+.ios-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* iOS Badge Styles */
+.badge {
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+/* iOS Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 590;
+  letter-spacing: -0.02em;
+}
+
+.ios-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+
+.ios-subtitle {
+  font-size: 16px;
+  font-weight: 400;
+  color: #8E8E93;
+  margin-bottom: 24px;
+}
+
+/* Overrides for Bootstrap */
+.bg-primary {
+  background-color: var(--ios-system-blue) !important;
+}
+
+.bg-success {
+  background-color: var(--ios-system-green) !important;
+}
+
+.bg-danger {
+  background-color: var(--ios-system-red) !important;
+}
+
+.btn-primary {
+  background-color: var(--ios-system-blue);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+}
+
+.btn-success {
+  background-color: var(--ios-system-green);
+  border: none;
+  border-radius: 10px;
+}
+
+.btn-danger {
+  background-color: var(--ios-system-red);
+  border: none;
+  border-radius: 10px;
+}

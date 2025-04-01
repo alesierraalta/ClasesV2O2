@@ -1,0 +1,1223 @@
+{% extends 'base.html' %}
+
+{% block title %}Resultados Informe Mensual - Sistema de Gestión de Clases{% endblock %}
+
+{% block styles %}
+<style media="print">
+    @page {
+        size: portrait;
+    }
+    nav, .btn, footer, .no-print, #btn-back-to-top {
+        display: none !important;
+    }
+    .card {
+        break-inside: avoid;
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    .collapse {
+        display: block !important;
+    }
+    table {
+        width: 100% !important;
+    }
+    .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    body {
+        font-size: 12pt;
+    }
+    .badge {
+        border: 1px solid #333 !important;
+    }
+}
+</style>
+
+<style>
+    #btn-back-to-top {
+        display: none;
+        transition: all 0.2s ease;
+    }
+    .report-nav-pills .nav-link {
+        color: #6c757d;
+    }
+    .report-nav-pills .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    html {
+        scroll-behavior: smooth;
+    }
+    .badge.fs-6 {
+        font-size: 0.9rem !important;
+    }
+    
+    /* Estilos para los tipos de clase */
+    .bg-move {
+        background-color: #28a745 !important;
+    }
+    .bg-ride {
+        background-color: #007bff !important;
+    }
+    .bg-box {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Estilos para la sección de clases no registradas */
+    #clases-no-registradas .badge {
+        font-size: 0.85rem;
+        padding: 0.4em 0.8em;
+    }
+    
+    .table-warning {
+        --bs-table-bg: rgba(255, 193, 7, 0.15);
+    }
+    
+    tr.table-warning:hover {
+        --bs-table-hover-bg: rgba(255, 193, 7, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header con acciones principales -->
+    <div class="card bg-light mb-4 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-0 text-primary">
+                        <i class="fas fa-file-invoice-dollar me-2"></i> Informe Mensual
+                    </h1>
+                    <p class="lead text-muted mb-0">{{ nombre_mes }} {{ anio }}</p>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline-success" onclick="exportToExcel()">
+                        <i class="fas fa-file-excel me-1"></i> Exportar a Excel
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                    <a href="{{ url_for('informe_mensual') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-sync me-1"></i> Nuevo informe
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guía de navegación del informe -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body py-2">
+                    <ul class="nav nav-pills report-nav-pills nav-fill">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#resumen">
+                                <i class="fas fa-tachometer-alt me-1"></i> Resumen general
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#profesores">
+                                <i class="fas fa-users me-1"></i> Profesores
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#clases">
+                                <i class="fas fa-clipboard-list me-1"></i> Clases
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#graficos">
+                                <i class="fas fa-chart-pie me-1"></i> Gráficos
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if resumen_profesores %}
+    <!-- Cálculos para resumen general -->
+    {% set total_clases = namespace(value=0) %}
+    {% set total_alumnos = namespace(value=0) %}
+    {% set total_retrasos = namespace(value=0) %}
+    {% set total_pagos = namespace(value=0) %}
+    
+    {% for profesor_id, datos in resumen_profesores.items() %}
+        {% set total_clases.value = total_clases.value + datos.total_clases %}
+        {% set total_alumnos.value = total_alumnos.value + datos.total_alumnos %}
+        {% set total_retrasos.value = total_retrasos.value + datos.total_retrasos %}
+        {% set total_pagos.value = total_pagos.value + datos.pago_total %}
+    {% endfor %}
+
+    <!-- Resumen general en tarjetas -->
+    <div id="resumen" class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0"><i class="fas fa-tachometer-alt me-2"></i> Resumen General</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100 text-center">
+                                <div class="card-body">
+                                    <div class="display-4 text-primary mb-2">
+                                        <i class="fas fa-calendar-check"></i>
+                                    </div>
+                                    <h1 class="display-5 fw-bold mb-0">{{ total_clases.value }}</h1>
+                                    <p class="mb-0 text-muted">Clases impartidas</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100 text-center">
+                                <div class="card-body">
+                                    <div class="display-4 {% if total_retrasos.value > 0 %}text-warning{% else %}text-info{% endif %} mb-2">
+                                        <i class="fas fa-stopwatch"></i>
+                                    </div>
+                                    <h1 class="display-5 fw-bold mb-0">{{ total_retrasos.value }}</h1>
+                                    <p class="mb-0 text-muted">
+                                        Clases con retraso
+                                        {% if total_retrasos.value > 0 and total_clases.value > 0 %}
+                                            <span class="badge bg-warning text-dark ms-1">{{ (total_retrasos.value / total_clases.value * 100)|round(1) }}%</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm h-100 text-center">
+                                <div class="card-body">
+                                    <div class="display-4 text-danger mb-2">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </div>
+                                    <h1 class="display-5 fw-bold mb-0">${{ total_pagos.value|round(2) }}</h1>
+                                    <p class="mb-0 text-muted">Total a pagar</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen por profesor -->
+    <div id="profesores" class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center bg-white">
+                    <h2 class="h5 mb-0"><i class="fas fa-users me-2"></i> Resumen por Profesor</h2>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#resumenProfesores" aria-expanded="true">
+                        <i class="fas fa-angle-up"></i>
+                    </button>
+                </div>
+                <div class="collapse show" id="resumenProfesores">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th scope="col" class="text-center" style="width: 40px;"></th>
+                                        <th scope="col">Profesor</th>
+                                        <th scope="col" class="text-center">Total Clases</th>
+                                        <th scope="col" class="text-center">Promedio Alumnos/Clase</th>
+                                        <th scope="col" class="text-center">Clases con Retraso</th>
+                                        <th scope="col" class="text-center">Tarifa por Clase</th>
+                                        <th scope="col" class="text-center">Pago Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for profesor_id, datos in resumen_profesores.items() %}
+                                    <tr class="profesor-row">
+                                        <td class="text-center align-middle">
+                                            <button class="btn btn-sm btn-outline-secondary toggle-clases" data-profesor-id="{{ profesor_id }}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar rounded-circle text-center me-2 p-1" style="width: 40px; height: 40px; background-color: rgba(54, 162, 235, 0.2);">
+                                                    <i class="fas fa-user text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">{{ datos.profesor.nombre }} {{ datos.profesor.apellido }}</div>
+                                                    <small class="text-muted">ID: {{ datos.profesor.id }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center align-middle">
+                                            <span class="badge rounded-pill bg-primary">{{ datos.total_clases }}</span>
+                                        </td>
+                                        <td class="text-center align-middle">
+                                            {% if datos.total_clases > 0 %}
+                                                {{ (datos.total_alumnos / datos.total_clases)|round(1) }}
+                                                <div class="progress mt-1" style="height: 5px;">
+                                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ (datos.total_alumnos / datos.total_clases / 20 * 100)|round }}%;" title="Promedio respecto a capacidad típica"></div>
+                                                </div>
+                                            {% else %}
+                                                0
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center align-middle">
+                                            {% if datos.total_retrasos > 0 %}
+                                                <div class="position-relative">
+                                                    <span class="badge rounded-pill bg-warning text-dark">{{ datos.total_retrasos }}</span>
+                                                    <small class="d-block mt-1">{{ (datos.total_retrasos / datos.total_clases * 100)|round(1) }}%</small>
+                                                </div>
+                                            {% else %}
+                                                <span class="badge rounded-pill bg-success"><i class="fas fa-check"></i> 0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center align-middle">${{ datos.profesor.tarifa_por_clase|round(2) }}</td>
+                                        <td class="text-center align-middle">
+                                            <span class="badge rounded-pill bg-danger fs-6">${{ datos.pago_total|round(2) }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr class="clases-detalle" id="clases-profesor-{{ profesor_id }}" style="display: none;">
+                                        <td colspan="7" class="p-0">
+                                            <div class="bg-light p-3">
+                                                <h6 class="mb-3 border-bottom pb-2">Clases de {{ datos.profesor.nombre }} {{ datos.profesor.apellido }}</h6>
+                                                {% set clases_profesor = [] %}
+                                                {% for clase in clases_realizadas if clase.profesor.id == datos.profesor.id %}
+                                                    {% set _ = clases_profesor.append(clase) %}
+                                                {% endfor %}
+                                                
+                                                {% if clases_profesor %}
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover mb-0">
+                                                        <thead>
+                                                            <tr class="table-secondary">
+                                                                <th>Fecha</th>
+                                                                <th>Clase</th>
+                                                                <th>Horario</th>
+                                                                <th>Estado</th>
+                                                                <th>Hora de llegada</th>
+                                                                <th>Puntualidad</th>
+                                                                <th class="text-center">Alumnos</th>
+                                                                <th class="text-center">Pago</th>
+                                                                <th>Observaciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for clase in clases_profesor|sort(attribute='fecha') %}
+                                                            <tr>
+                                                                <td>{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
+                                                                <td>{{ clase.horario.nombre }}</td>
+                                                                <td>{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
+                                                                <td>
+                                                                    {% if clase.profesor_suplente %}
+                                                                        <span class="badge bg-info">Impartida por suplente</span>
+                                                                        <div class="small text-muted mt-1">{{ clase.profesor_suplente.nombre }} {{ clase.profesor_suplente.apellido }}</div>
+                                                                    {% elif clase.ausencia_profesor %}
+                                                                        <span class="badge bg-danger">Clase cancelada</span>
+                                                                        <div class="small text-muted mt-1">{{ clase.motivo_ausencia }}</div>
+                                                                    {% else %}
+                                                                        <span class="badge bg-success">Impartida por titular</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if clase.hora_llegada_profesor %}
+                                                                        {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                                                    {% elif clase.profesor_suplente %}
+                                                                        <span class="text-muted fst-italic">Suplente</span>
+                                                                    {% elif clase.ausencia_profesor %}
+                                                                        <span class="text-muted fst-italic">No asistió</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted fst-italic">No registrada</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if clase.hora_llegada_profesor %}
+                                                                        <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                                            {{ clase.puntualidad() }}
+                                                                        </span>
+                                                                    {% elif clase.profesor_suplente %}
+                                                                        <span class="badge rounded-pill bg-secondary">Suplente</span>
+                                                                    {% elif clase.ausencia_profesor %}
+                                                                        <span class="badge rounded-pill bg-danger">Ausente</span>
+                                                                    {% else %}
+                                                                        <span class="badge rounded-pill bg-secondary">N/A</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td class="text-center align-middle">
+                                                                    <div class="d-flex align-items-center justify-content-center">
+                                                                        <span class="badge rounded-pill bg-info text-dark">{{ clase.cantidad_alumnos }}</span>
+                                                                    </div>
+                                                                    {% if clase.hora_llegada_profesor and clase.cantidad_alumnos == 0 %}
+                                                                        <div class="small text-danger text-center mt-1">Tarifa reducida 50%</div>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td class="text-center align-middle">
+                                                                    <span class="badge bg-success">${{ clase.pago_calculado|round(2) }}</span>
+                                                                </td>
+                                                                <td>
+                                                                    {% if clase.observaciones %}
+                                                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="popover" data-bs-placement="left" title="Observaciones" data-bs-content="{{ clase.observaciones }}">
+                                                                            <i class="fas fa-comment-dots"></i>
+                                                                        </button>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                {% else %}
+                                                <div class="alert alert-info mb-0">
+                                                    No hay clases registradas para este profesor en el período seleccionado.
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Clases detalladas -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white" id="clases">
+                    <h3 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i> Detalle de Clases 
+                        <span class="badge bg-light text-dark ms-2">{{ clases_realizadas|length }}</span>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Filtros para la tabla -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Buscar...">
+                        </div>
+                        <small class="text-muted">Busque por profesor, fecha o cualquier otro criterio</small>
+                    </div>
+                    
+                    <!-- Tabla de clases -->
+                    <div class="table-responsive">
+                        {% if clases_realizadas %}
+                        <table class="table table-sm table-hover mb-0" id="tableclases">
+                            <thead>
+                                <tr class="table-light">
+                                    <th scope="col">Fecha</th>
+                                    <th scope="col">Clase</th>
+                                    <th scope="col">Horario</th>
+                                    <th scope="col">Profesor</th>
+                                    <th scope="col">Estado</th>
+                                    <th scope="col">Hora de llegada</th>
+                                    <th scope="col">Puntualidad</th>
+                                    <th scope="col" class="text-center">Alumnos</th>
+                                    <th scope="col" class="text-center">Pago</th>
+                                    <th scope="col">Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for clase in clases_realizadas %}
+                                <tr>
+                                    <td class="align-middle">{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
+                                    <td class="align-middle fw-medium">{{ clase.horario.nombre }}</td>
+                                    <td class="align-middle">{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
+                                    <td class="align-middle">
+                                        {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}
+                                        {% if clase.profesor_suplente %}
+                                            <div class="badge bg-info small">Suplido por: {{ clase.profesor_suplente.nombre }} {{ clase.profesor_suplente.apellido }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle">
+                                        {% if clase.profesor_suplente %}
+                                            <span class="badge bg-info">Suplente</span>
+                                        {% elif clase.ausencia_profesor %}
+                                            <span class="badge bg-danger">Cancelada</span>
+                                            <div class="small text-muted d-block mt-1">{{ clase.motivo_ausencia }}</div>
+                                        {% else %}
+                                            <span class="badge bg-success">Normal</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle">
+                                        {% if clase.hora_llegada_profesor %}
+                                            {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                        {% elif clase.profesor_suplente %}
+                                            <span class="text-muted fst-italic">Suplente</span>
+                                        {% elif clase.ausencia_profesor %}
+                                            <span class="text-muted fst-italic">No asistió</span>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">No registrada</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle">
+                                        {% if clase.hora_llegada_profesor %}
+                                            <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                {{ clase.puntualidad() }}
+                                            </span>
+                                        {% elif clase.profesor_suplente %}
+                                            <span class="badge rounded-pill bg-secondary">Suplente</span>
+                                        {% elif clase.ausencia_profesor %}
+                                            <span class="badge rounded-pill bg-danger">Ausente</span>
+                                        {% else %}
+                                            <span class="badge rounded-pill bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="badge rounded-pill bg-info text-dark">{{ clase.cantidad_alumnos }}</span>
+                                        </div>
+                                        {% if clase.hora_llegada_profesor and clase.cantidad_alumnos == 0 %}
+                                            <div class="small text-danger text-center mt-1">Tarifa reducida 50%</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <span class="badge bg-success">${{ clase.pago_calculado|round(2) }}</span>
+                                    </td>
+                                    <td class="align-middle">
+                                        {% if clase.observaciones %}
+                                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="popover" data-bs-placement="left" title="Observaciones" data-bs-content="{{ clase.observaciones }}">
+                                                <i class="fas fa-comment-dots"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="card-footer bg-white text-muted d-flex justify-content-between align-items-center pt-2 pb-2">
+                            <div>
+                                <small>Mostrando {{ clases_realizadas|length }} clases</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-success me-1">Normal</span>
+                                <span class="badge bg-info me-1">Suplente</span>
+                                <span class="badge bg-danger me-1">Cancelada</span>
+                                <span class="badge rounded-pill bg-success me-1">Puntual</span>
+                                <span class="badge rounded-pill bg-warning text-dark me-1">Retraso leve</span>
+                                <span class="badge rounded-pill bg-danger">Retraso significativo</span>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info m-3">
+                            <i class="fas fa-info-circle me-2"></i> No hay clases registradas para este período.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- NUEVA SECCIÓN: Clases no registradas -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark" id="clases-no-registradas">
+                    <h3 class="mb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-exclamation-triangle me-2"></i> Clases No Registradas
+                            <span class="badge bg-dark text-white ms-2">{{ conteo_no_registradas.total }}</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-move text-white me-2">MOVE: {{ conteo_no_registradas.MOVE }}</span>
+                            <span class="badge bg-ride text-white me-2">RIDE: {{ conteo_no_registradas.RIDE }}</span>
+                            <span class="badge bg-box text-white me-2">BOX: {{ conteo_no_registradas.BOX }}</span>
+                            <span class="badge bg-secondary text-white">OTRO: {{ conteo_no_registradas.OTRO }}</span>
+                        </div>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-info-circle me-2"></i> Las siguientes clases estaban programadas pero no tienen registros de asistencia en el sistema. Puede que las clases se hayan realizado pero no se hayan registrado, o que se hayan cancelado sin notificación.
+                    </div>
+                    
+                    <!-- Filtros y acciones para clases no registradas -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="input-group" style="max-width: 400px;">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="searchNoRegistradas" class="form-control" placeholder="Buscar clases no registradas...">
+                        </div>
+                        
+                        <div>
+                            <button id="btnSeleccionarTodasNoRegistradas" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-check-square me-1"></i> Seleccionar todas
+                            </button>
+                            <button id="btnRegistrarSeleccionadas" class="btn btn-primary" style="display:none">
+                                <i class="fas fa-clipboard-check me-1"></i> Registrar <span id="contadorSeleccionadas">0</span> clases
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de clases no registradas -->
+                    <div class="table-responsive">
+                        {% if clases_no_registradas %}
+                        <form id="formRegistroMasivo" action="{{ url_for('registrar_clases_no_registradas') }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <table class="table table-sm table-hover mb-0" id="tablaNoRegistradas">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th scope="col" style="width: 40px;">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="checkTodas">
+                                            </div>
+                                        </th>
+                                        <th scope="col">Fecha</th>
+                                        <th scope="col">Clase</th>
+                                        <th scope="col">Tipo</th>
+                                        <th scope="col">Horario</th>
+                                        <th scope="col">Profesor</th>
+                                        <th scope="col">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for clase in clases_no_registradas %}
+                                    <tr class="table-warning">
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input checkbox-clase" type="checkbox" name="clases_ids[]" value="{{ clase.fecha.strftime('%Y-%m-%d') }}|{{ clase.horario.id }}">
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
+                                        <td class="align-middle fw-medium">{{ clase.horario.nombre }}</td>
+                                        <td class="align-middle">
+                                            {% if clase.tipo_clase == 'MOVE' %}
+                                            <span class="badge bg-move">MOVE</span>
+                                            {% elif clase.tipo_clase == 'RIDE' %}
+                                            <span class="badge bg-ride">RIDE</span>
+                                            {% elif clase.tipo_clase == 'BOX' %}
+                                            <span class="badge bg-box">BOX</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">OTRO</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="align-middle">{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
+                                        <td class="align-middle">
+                                            {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}
+                                        </td>
+                                        <td class="align-middle">
+                                            <a href="{{ url_for('registrar_asistencia_fecha', fecha=clase.fecha.strftime('%Y-%m-%d'), horario_id=clase.horario.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-clipboard-check me-1"></i> Registrar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </form>
+                        {% else %}
+                        <div class="alert alert-success m-3">
+                            <i class="fas fa-check-circle me-2"></i> Todas las clases programadas para este período han sido registradas correctamente.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmación para registro masivo -->
+    <div class="modal fade" id="modalConfirmacionRegistro" tabindex="-1" aria-labelledby="modalConfirmacionRegistroLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalConfirmacionRegistroLabel">Confirmar registro de clases</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Está a punto de registrar <strong id="numClasesARegistrar">0</strong> clases no registradas.</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> Estas clases se crearán con <strong>0 alumnos</strong> y se marcarán como registradas automáticamente. Puede editar los detalles más tarde.
+                    </div>
+                    <p>¿Está seguro de continuar?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnConfirmarRegistro">Registrar clases</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección: Gráficos -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white" id="graficos">
+                    <h3 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i> Análisis Visual 
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <canvas id="classTypeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <canvas id="studentTypeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info shadow-sm">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="fas fa-info-circle fa-3x text-info"></i>
+                    </div>
+                    <div>
+                        <h4 class="alert-heading">No hay datos disponibles</h4>
+                        <p>No se encontraron datos para mostrar en el informe del mes de {{ nombre_mes }} de {{ anio }}.</p>
+                        <hr>
+                        <p class="mb-0">Verifica que existan registros de clases para este período o selecciona un mes diferente.</p>
+                        <a href="{{ url_for('informe_mensual') }}" class="btn btn-info mt-3">
+                            <i class="fas fa-calendar-alt me-1"></i> Seleccionar otro mes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Botón volver flotante -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
+        <a href="#" class="btn btn-primary btn-lg rounded-circle shadow" id="btn-back-to-top">
+            <i class="fas fa-arrow-up"></i>
+        </a>
+    </div>
+</div>
+
+<style media="print">
+    @page {
+        size: portrait;
+    }
+    nav, .btn, footer, .no-print, #btn-back-to-top {
+        display: none !important;
+    }
+    .card {
+        break-inside: avoid;
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    .collapse {
+        display: block !important;
+    }
+    table {
+        width: 100% !important;
+    }
+    .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    body {
+        font-size: 12pt;
+    }
+    .badge {
+        border: 1px solid #333 !important;
+    }
+</style>
+
+<style>
+    #btn-back-to-top {
+        display: none;
+        transition: all 0.2s ease;
+    }
+    .report-nav-pills .nav-link {
+        color: #6c757d;
+    }
+    .report-nav-pills .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    html {
+        scroll-behavior: smooth;
+    }
+    .badge.fs-6 {
+        font-size: 0.9rem !important;
+    }
+    
+    /* Estilos para los tipos de clase */
+    .bg-move {
+        background-color: #28a745 !important;
+    }
+    .bg-ride {
+        background-color: #007bff !important;
+    }
+    .bg-box {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Estilos para la sección de clases no registradas */
+    #clases-no-registradas .badge {
+        font-size: 0.85rem;
+        padding: 0.4em 0.8em;
+    }
+    
+    .table-warning {
+        --bs-table-bg: rgba(255, 193, 7, 0.15);
+    }
+    
+    tr.table-warning:hover {
+        --bs-table-hover-bg: rgba(255, 193, 7, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Asegurar que Bootstrap esté disponible -->
+<script>
+    // Verificar si bootstrap ya está definido
+    if (typeof bootstrap === 'undefined') {
+        console.log('Bootstrap no detectado, cargando...');
+        // Crear un elemento script para cargar Bootstrap
+        var bootstrapScript = document.createElement('script');
+        bootstrapScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
+        bootstrapScript.integrity = 'sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz';
+        bootstrapScript.crossOrigin = 'anonymous';
+        
+        // Esperar a que cargue antes de inicializar los componentes de Bootstrap
+        bootstrapScript.onload = function() {
+            console.log('Bootstrap cargado correctamente');
+            // Disparar un evento personalizado para que otro código sepa que bootstrap está listo
+            document.dispatchEvent(new Event('bootstrap:loaded'));
+        };
+        
+        document.head.appendChild(bootstrapScript);
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+    // Ejecutar cuando el DOM esté completamente cargado
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para inicializar todos los componentes de la página
+        function initializeComponents() {
+            console.log('Inicializando componentes...');
+            
+            // Verificar que bootstrap esté disponible antes de continuar
+            if (typeof bootstrap === 'undefined') {
+                console.log('Bootstrap aún no está disponible, esperando...');
+                // Si Bootstrap no está disponible, esperar por el evento personalizado
+                document.addEventListener('bootstrap:loaded', initializeComponents, { once: true });
+                return;
+            }
+            
+            // Inicializar popovers
+            try {
+                const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+                const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                    return new bootstrap.Popover(popoverTriggerEl, {
+                        trigger: 'hover',
+                        placement: 'top'
+                    });
+                });
+                console.log('Popovers inicializados');
+            } catch (error) {
+                console.error('Error al inicializar popovers:', error);
+            }
+            
+            // Inicializar los botones para mostrar/ocultar detalle de clases por profesor
+            try {
+                console.log('Configurando botones de expansión...');
+                document.querySelectorAll('.toggle-clases').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        console.log('Botón clickeado, profesor ID:', this.dataset.profesorId);
+                        const profesorId = this.dataset.profesorId;
+                        const detalleRow = document.getElementById(`clases-profesor-${profesorId}`);
+                        const icono = this.querySelector('i');
+                        
+                        if (detalleRow) {
+                            if (detalleRow.style.display === 'none' || !detalleRow.style.display) {
+                                console.log('Mostrando detalles');
+                                detalleRow.style.display = 'table-row';
+                                icono.classList.remove('fa-plus');
+                                icono.classList.add('fa-minus');
+                            } else {
+                                console.log('Ocultando detalles');
+                                detalleRow.style.display = 'none';
+                                icono.classList.remove('fa-minus');
+                                icono.classList.add('fa-plus');
+                            }
+                        } else {
+                            console.error('No se encontró la fila de detalles:', `clases-profesor-${profesorId}`);
+                        }
+                    });
+                });
+                console.log('Botones de expansión configurados');
+            } catch (error) {
+                console.error('Error al configurar botones de expansión:', error);
+            }
+            
+            // Filtrado de tablas
+            document.getElementById('searchInput')?.addEventListener('keyup', function() {
+                const searchText = this.value.toLowerCase();
+                filterTable('tableclases', searchText);
+            });
+            
+            document.getElementById('searchNoRegistradas')?.addEventListener('keyup', function() {
+                const searchText = this.value.toLowerCase();
+                filterTable('tablaNoRegistradas', searchText);
+            });
+            
+            const navPills = document.querySelector('.report-nav-pills');
+            if (navPills) {
+                const clasesFaltantesItem = document.createElement('li');
+                clasesFaltantesItem.className = 'nav-item';
+                
+                const clasesFaltantesLink = document.createElement('a');
+                clasesFaltantesLink.className = 'nav-link';
+                clasesFaltantesLink.href = '#clases-no-registradas';
+                clasesFaltantesLink.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Clases no registradas';
+                
+                clasesFaltantesItem.appendChild(clasesFaltantesLink);
+                navPills.appendChild(clasesFaltantesItem);
+            }
+            
+            // Manejo de checkboxes para clases no registradas
+            const checkTodas = document.getElementById('checkTodas');
+            const checkboxesClase = document.querySelectorAll('.checkbox-clase');
+            const btnRegistrarSeleccionadas = document.getElementById('btnRegistrarSeleccionadas');
+            const btnSeleccionarTodasNoRegistradas = document.getElementById('btnSeleccionarTodasNoRegistradas');
+            const contadorSeleccionadas = document.getElementById('contadorSeleccionadas');
+            const numClasesARegistrar = document.getElementById('numClasesARegistrar');
+            const formRegistroMasivo = document.getElementById('formRegistroMasivo');
+            const btnConfirmarRegistro = document.getElementById('btnConfirmarRegistro');
+            
+            // Inicializar el modal usando bootstrap
+            const modalEl = document.getElementById('modalConfirmacionRegistro');
+            let modalConfirmacionRegistro = null;
+            if (modalEl && bootstrap) {
+                modalConfirmacionRegistro = new bootstrap.Modal(modalEl);
+            }
+            
+            // Función para actualizar el contador y la visibilidad del botón
+            function actualizarContadorSeleccionadas() {
+                if (!checkboxesClase || checkboxesClase.length === 0) return;
+                
+                const seleccionadas = Array.from(checkboxesClase).filter(cb => cb.checked).length;
+                if (contadorSeleccionadas) contadorSeleccionadas.textContent = seleccionadas;
+                if (numClasesARegistrar) numClasesARegistrar.textContent = seleccionadas;
+                
+                if (btnRegistrarSeleccionadas) {
+                    if (seleccionadas > 0) {
+                        btnRegistrarSeleccionadas.style.display = 'inline-block';
+                    } else {
+                        btnRegistrarSeleccionadas.style.display = 'none';
+                    }
+                }
+                
+                // Actualizar estado del checkbox principal
+                if (checkTodas) {
+                    if (seleccionadas === 0) {
+                        checkTodas.checked = false;
+                        checkTodas.indeterminate = false;
+                    } else if (seleccionadas === checkboxesClase.length) {
+                        checkTodas.checked = true;
+                        checkTodas.indeterminate = false;
+                    } else {
+                        checkTodas.checked = false;
+                        checkTodas.indeterminate = true;
+                    }
+                }
+            }
+            
+            // Event listener para el checkbox "seleccionar todas"
+            if (checkTodas) {
+                checkTodas.addEventListener('change', function() {
+                    checkboxesClase.forEach(cb => {
+                        cb.checked = checkTodas.checked;
+                    });
+                    actualizarContadorSeleccionadas();
+                });
+            }
+            
+            // Event listener para el botón "Seleccionar todas"
+            if (btnSeleccionarTodasNoRegistradas) {
+                btnSeleccionarTodasNoRegistradas.addEventListener('click', function() {
+                    const isAllChecked = Array.from(checkboxesClase).every(cb => cb.checked);
+                    checkboxesClase.forEach(cb => {
+                        cb.checked = !isAllChecked;
+                    });
+                    actualizarContadorSeleccionadas();
+                });
+            }
+            
+            // Event listeners para cada checkbox individual
+            checkboxesClase.forEach(cb => {
+                cb.addEventListener('change', actualizarContadorSeleccionadas);
+            });
+            
+            // Event listener para el botón de registrar seleccionadas
+            if (btnRegistrarSeleccionadas) {
+                btnRegistrarSeleccionadas.addEventListener('click', function() {
+                    if (modalConfirmacionRegistro) {
+                        modalConfirmacionRegistro.show();
+                    }
+                });
+            }
+            
+            // Event listener para confirmar el registro masivo
+            if (btnConfirmarRegistro) {
+                btnConfirmarRegistro.addEventListener('click', function() {
+                    if (formRegistroMasivo) {
+                        formRegistroMasivo.submit();
+                    }
+                });
+            }
+            
+            // Inicializar contador
+            actualizarContadorSeleccionadas();
+            
+            // Inicializar gráficos
+            const ctxClasses = document.getElementById('classTypeChart')?.getContext('2d');
+            const ctxStudents = document.getElementById('studentTypeChart')?.getContext('2d');
+            
+            if (ctxClasses) {
+                new Chart(ctxClasses, {
+                    type: 'pie',
+                    data: {
+                        labels: ['MOVE', 'RIDE', 'BOX', 'OTRO'],
+                        datasets: [{
+                            data: [
+                                {% if conteo_tipos is defined %}{{ conteo_tipos['MOVE'] }}{% else %}0{% endif %},
+                                {% if conteo_tipos is defined %}{{ conteo_tipos['RIDE'] }}{% else %}0{% endif %},
+                                {% if conteo_tipos is defined %}{{ conteo_tipos['BOX'] }}{% else %}0{% endif %},
+                                {% if conteo_tipos is defined %}{{ conteo_tipos['OTRO'] }}{% else %}0{% endif %}
+                            ],
+                            backgroundColor: [
+                                'rgba(40, 167, 69, 0.7)',  // MOVE - green
+                                'rgba(0, 123, 255, 0.7)',  // RIDE - blue
+                                'rgba(220, 53, 69, 0.7)',  // BOX - red
+                                'rgba(108, 117, 125, 0.7)' // OTRO - gray
+                            ],
+                            borderColor: [
+                                'rgba(40, 167, 69, 1)',
+                                'rgba(0, 123, 255, 1)',
+                                'rgba(220, 53, 69, 1)',
+                                'rgba(108, 117, 125, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribución de clases por tipo'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            if (ctxStudents) {
+                new Chart(ctxStudents, {
+                    type: 'pie',
+                    data: {
+                        labels: ['MOVE', 'RIDE', 'BOX', 'OTRO'],
+                        datasets: [{
+                            data: [
+                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['MOVE'] }}{% else %}0{% endif %},
+                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['RIDE'] }}{% else %}0{% endif %},
+                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['BOX'] }}{% else %}0{% endif %},
+                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['OTRO'] }}{% else %}0{% endif %}
+                            ],
+                            backgroundColor: [
+                                'rgba(40, 167, 69, 0.7)',  // MOVE - green
+                                'rgba(0, 123, 255, 0.7)',  // RIDE - blue
+                                'rgba(220, 53, 69, 0.7)',  // BOX - red
+                                'rgba(108, 117, 125, 0.7)' // OTRO - gray
+                            ],
+                            borderColor: [
+                                'rgba(40, 167, 69, 1)',
+                                'rgba(0, 123, 255, 1)',
+                                'rgba(220, 53, 69, 1)',
+                                'rgba(108, 117, 125, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribución de alumnos por tipo de clase'
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Inicializar componentes
+        initializeComponents();
+    });
+    
+    function filterTable(tableId, searchText) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        
+        const rows = table.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    // Botón de volver arriba
+    const mybutton = document.getElementById("btn-back-to-top");
+    
+    window.onscroll = function () {
+        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+            mybutton.style.display = "block";
+        } else {
+            mybutton.style.display = "none";
+        }
+    };
+    
+    mybutton?.addEventListener("click", backToTop);
+    
+    function backToTop() {
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+    }
+
+    // Exportar a Excel
+    function exportToExcel() {
+        // Configuración de la hoja de cálculo
+        const wb = XLSX.utils.book_new();
+        wb.Props = {
+            Title: "Informe Mensual",
+            Subject: "Clases y Asistencia",
+            Author: "Sistema de Gestión de Clases",
+            CreatedDate: new Date()
+        };
+        
+        // Valores por defecto en caso de que no haya datos
+        const clases = "{{ total_clases.value|default('0') }}";
+        const alumnos = "{{ total_alumnos.value|default('0') }}";
+        const retrasos = "{{ total_retrasos.value|default('0') }}";
+        const pagos = "{{ total_pagos.value|default('0') }}";
+        
+        // Hoja principal con resumen
+        const resumenData = [
+            ["INFORME MENSUAL - {{ nombre_mes }} {{ anio }}"],
+            [],
+            ["RESUMEN GENERAL"],
+            ["Total Clases", clases],
+            ["Total Alumnos", alumnos],
+            ["Clases con Retraso", retrasos],
+            ["Total a Pagar", "$" + pagos],
+            []
+        ];
+        
+        // Solo agregar información sobre clases no registradas si está definida la variable
+        {% if conteo_no_registradas is defined %}
+        resumenData.push(["CLASES NO REGISTRADAS", "{{ conteo_no_registradas.total }}"]);
+        resumenData.push(["MOVE", "{{ conteo_no_registradas.MOVE }}"]);
+        resumenData.push(["RIDE", "{{ conteo_no_registradas.RIDE }}"]);
+        resumenData.push(["BOX", "{{ conteo_no_registradas.BOX }}"]);
+        resumenData.push(["OTRO", "{{ conteo_no_registradas.OTRO }}"]);
+        {% else %}
+        resumenData.push(["CLASES NO REGISTRADAS", "0"]);
+        resumenData.push(["MOVE", "0"]);
+        resumenData.push(["RIDE", "0"]);
+        resumenData.push(["BOX", "0"]);
+        resumenData.push(["OTRO", "0"]);
+        {% endif %}
+        
+        const resumenWS = XLSX.utils.aoa_to_sheet(resumenData);
+        XLSX.utils.book_append_sheet(wb, resumenWS, "Resumen");
+        
+        // Hoja de clases
+        const clasesHeaders = ["Fecha", "Clase", "Horario", "Profesor", "Estado", "Hora Llegada", "Puntualidad", "Alumnos", "Observaciones"];
+        const clasesData = [clasesHeaders];
+        
+        {% if clases_realizadas is defined and clases_realizadas %}
+        {% for clase in clases_realizadas %}
+        clasesData.push([
+            "{{ clase.fecha.strftime('%d/%m/%Y') }}",
+            "{{ clase.horario.nombre }}",
+            "{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}",
+            "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}",
+            {% if clase.profesor_suplente %}"Suplente"{% elif clase.ausencia_profesor %}"Cancelada"{% else %}"Normal"{% endif %},
+            {% if clase.hora_llegada_profesor %}"{{ clase.hora_llegada_profesor.strftime('%H:%M') }}"{% else %}"N/A"{% endif %},
+            {% if clase.hora_llegada_profesor %}"{{ clase.puntualidad() }}"{% else %}"N/A"{% endif %},
+            "{{ clase.cantidad_alumnos }}",
+            "{{ clase.observaciones|default('') }}"
+        ]);
+        {% endfor %}
+        {% else %}
+        clasesData.push(["Sin datos", "", "", "", "", "", "", "", ""]);
+        {% endif %}
+        
+        const clasesWS = XLSX.utils.aoa_to_sheet(clasesData);
+        XLSX.utils.book_append_sheet(wb, clasesWS, "Clases Realizadas");
+        
+        // Hoja de clases no registradas
+        const noRegistradasHeaders = ["Fecha", "Clase", "Tipo", "Horario", "Profesor"];
+        const noRegistradasData = [noRegistradasHeaders];
+        
+        {% if clases_no_registradas is defined and clases_no_registradas %}
+        {% for clase in clases_no_registradas %}
+        noRegistradasData.push([
+            "{{ clase.fecha.strftime('%d/%m/%Y') }}",
+            "{{ clase.horario.nombre }}",
+            "{{ clase.tipo_clase }}",
+            "{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}",
+            "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}"
+        ]);
+        {% endfor %}
+        {% else %}
+        noRegistradasData.push(["Sin datos", "", "", "", ""]);
+        {% endif %}
+        
+        const noRegistradasWS = XLSX.utils.aoa_to_sheet(noRegistradasData);
+        XLSX.utils.book_append_sheet(wb, noRegistradasWS, "Clases No Registradas");
+        
+        // Guardar archivo
+        XLSX.writeFile(wb, "Informe_Mensual_{{ nombre_mes }}_{{ anio }}.xlsx");
+    }
+</script>
+{% endblock %} 

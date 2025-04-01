@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diagnóstico de Carga de Audio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .warning {
+            color: orange;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .file-list {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Diagnóstico de Carga de Audio</h1>
+    
+    <div class="section">
+        <h2>Estado de Directorios</h2>
+        <p>Estado general: 
+            {% if dirs_ok %}
+                <span class="success">¡OK! Todos los directorios necesarios existen y tienen permisos de escritura.</span>
+            {% else %}
+                <span class="error">ERRORES DETECTADOS</span>
+            {% endif %}
+        </p>
+        
+        {% if not dirs_ok %}
+        <div class="error">
+            <h3>Errores Detectados:</h3>
+            <ul>
+                {% for error in dir_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <table>
+            <tr>
+                <th>Directorio</th>
+                <th>Existe</th>
+                <th>Permisos de Escritura</th>
+                <th>Archivos</th>
+            </tr>
+            {% for dir, status in dir_status.items() %}
+            <tr>
+                <td>{{ dir }}</td>
+                <td>
+                    {% if status.exists %}
+                        <span class="success">Sí</span>
+                    {% else %}
+                        <span class="error">No</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not status.exists %}
+                        <span class="warning">N/A</span>
+                    {% elif status.writable %}
+                        <span class="success">Sí</span>
+                    {% else %}
+                        <span class="error">No</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if status.exists %}
+                        {{ status.file_count if status.file_count is defined else status.files|length }} archivos
+                        <div class="file-list">
+                            {% if status.files %}
+                                <ul>
+                                {% for file in status.files %}
+                                    <li>{{ file }}</li>
+                                {% endfor %}
+                                </ul>
+                                {% if status.file_count and status.file_count > status.files|length %}
+                                    <p>... y {{ status.file_count - status.files|length }} más</p>
+                                {% endif %}
+                            {% else %}
+                                <p>No hay archivos</p>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <span class="warning">N/A</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>Configuración</h2>
+        <table>
+            <tr>
+                <th>Configuración</th>
+                <th>Valor</th>
+            </tr>
+            <tr>
+                <td>UPLOAD_FOLDER</td>
+                <td>{{ config_status.UPLOAD_FOLDER }}</td>
+            </tr>
+            <tr>
+                <td>MAX_CONTENT_LENGTH</td>
+                <td>{{ config_status.MAX_CONTENT_LENGTH }} bytes ({{ (config_status.MAX_CONTENT_LENGTH / (1024*1024))|round(2) }} MB)</td>
+            </tr>
+            <tr>
+                <td>ALLOWED_EXTENSIONS_AUDIO</td>
+                <td>{{ config_status.ALLOWED_EXTENSIONS_AUDIO|join(', ') }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>Pruebas</h2>
+        <p>Utiliza estos enlaces para probar las funciones de audio:</p>
+        <ul>
+            <li><a href="/test-upload" target="_blank">Página de prueba de carga</a></li>
+            <li><a href="/asistencia/audio/get/5" target="_blank">Obtener audio para horario 5</a></li>
+            <li><a href="/asistencia/audio/get/6" target="_blank">Obtener audio para horario 6</a></li>
+            <li><a href="/asistencia/audio/check/5" target="_blank">Verificar existencia de audio para horario 5</a></li>
+        </ul>
+    </div>
+</body>
+</html>

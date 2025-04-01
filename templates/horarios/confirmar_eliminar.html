@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Eliminación de Horario - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="text-danger">Este horario tiene clases asociadas</h5>
+                    <p>El horario "{{ horario.nombre }}" ({{ horario.nombre_dia() }} {{ horario.hora_inicio.strftime('%H:%M') }}) tiene {{ cantidad_clases }} clase(s) realizada(s) asociada(s).</p>
+                    
+                    <div class="alert alert-info">
+                        <p class="mb-0"><i class="fas fa-info-circle me-2"></i>Seleccione una opción para continuar:</p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('confirmar_eliminar_horario', id=horario.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <div class="border rounded p-3 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="opcion" id="opcionSoloHorario" value="solo_horario">
+                                    <label class="form-check-label" for="opcionSoloHorario">
+                                        <strong>Eliminar solo el horario</strong>
+                                        <p class="text-muted small">Se eliminará el horario pero se conservarán las {{ cantidad_clases }} clase(s) asociada(s) en el historial. Estas clases se asignarán a un horario especial llamado "Horario Eliminado (Clases Históricas)".</p>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="border rounded p-3 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="opcion" id="opcionTodo" value="horario_y_clases">
+                                    <label class="form-check-label" for="opcionTodo">
+                                        <strong>Eliminar el horario y las clases asociadas</strong>
+                                        <p class="text-muted small">Se eliminará permanentemente el horario y todas las {{ cantidad_clases }} clase(s) asociada(s). Esta acción no se puede deshacer.</p>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="border rounded p-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="opcion" id="opcionCancelar" value="cancelar" checked>
+                                    <label class="form-check-label" for="opcionCancelar">
+                                        <strong>Cancelar</strong>
+                                        <p class="text-muted small">No hacer ningún cambio y volver a la lista de horarios.</p>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('listar_horarios') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check me-1"></i> Confirmar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

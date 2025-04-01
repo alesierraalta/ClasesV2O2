@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Informes - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold text-primary">
+            <i class="fas fa-chart-bar me-2"></i> Centro de Informes
+        </h1>
+        <p class="lead text-muted">Genera informes detallados para analizar el rendimiento de tu gimnasio y calcular pagos</p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                                Clases este mes</div>
+                            <div class="h5 mb-0 fw-bold">{{ stats.clases_mes if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                Alumnos este mes</div>
+                            <div class="h5 mb-0 fw-bold">{{ stats.alumnos_mes if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                Clases con retraso</div>
+                            <div class="h5 mb-0 fw-bold">{{ stats.retrasos_mes if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-danger text-uppercase mb-1">
+                                Total a pagar</div>
+                            <div class="h5 mb-0 fw-bold">${{ stats.pago_total|round(2) if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informes Disponibles -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-primary text-white">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-folder me-1"></i> Informes Disponibles</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="accordion" id="accordionInformes">
+                        <!-- Informe Mensual -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingMensual">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMensual" aria-expanded="true" aria-controls="collapseMensual">
+                                    <i class="fas fa-file-invoice-dollar me-2"></i> Informe Mensual
+                                </button>
+                            </h2>
+                            <div id="collapseMensual" class="accordion-collapse collapse show" aria-labelledby="headingMensual" data-bs-parent="#accordionInformes">
+                                <div class="accordion-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h5 class="mb-1">Informe Mensual de Clases y Pagos</h5>
+                                            <p class="text-muted mb-0">Genera informes detallados para calcular el pago a profesores y analizar el rendimiento por mes.</p>
+                                        </div>
+                                        <div>
+                                            <a href="{{ url_for('informe_mensual') }}" class="btn btn-primary">
+                                                <i class="fas fa-arrow-right me-1"></i> Generar
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted mt-2">
+                                        <i class="fas fa-info-circle me-1"></i> Incluye: Resumen por profesor, detalle de clases, análisis de asistencia y gráficos.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Próximamente: Informe de Puntualidad -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingPuntualidad">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePuntualidad" aria-expanded="false" aria-controls="collapsePuntualidad">
+                                    <i class="fas fa-clock me-2"></i> Informe de Puntualidad
+                                </button>
+                            </h2>
+                            <div id="collapsePuntualidad" class="accordion-collapse collapse" aria-labelledby="headingPuntualidad" data-bs-parent="#accordionInformes">
+                                <div class="accordion-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h5 class="mb-1">Análisis Detallado de Puntualidad</h5>
+                                            <p class="text-muted mb-0">Análisis de la puntualidad de los profesores, incluyendo tendencias y estadísticas.</p>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-secondary" disabled>
+                                                <i class="fas fa-clock me-1"></i> Próximamente
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Próximamente: Informe de Asistencia -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingAsistencia">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAsistencia" aria-expanded="false" aria-controls="collapseAsistencia">
+                                    <i class="fas fa-users me-2"></i> Informe de Asistencia
+                                </button>
+                            </h2>
+                            <div id="collapseAsistencia" class="accordion-collapse collapse" aria-labelledby="headingAsistencia" data-bs-parent="#accordionInformes">
+                                <div class="accordion-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h5 class="mb-1">Análisis de Asistencia de Alumnos</h5>
+                                            <p class="text-muted mb-0">Detalle de asistencia por clase, horario y profesor, con tendencias históricas.</p>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-secondary" disabled>
+                                                <i class="fas fa-clock me-1"></i> Próximamente
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-success text-white">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-calendar me-1"></i> Acceso Rápido</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <a href="{{ url_for('informe_mensual') }}" class="btn btn-outline-primary w-100 py-3">
+                                <i class="fas fa-file-invoice-dollar d-block mb-2 fs-4"></i>
+                                Informe Mensual
+                            </a>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <a href="#" class="btn btn-outline-secondary w-100 py-3" onclick="generarInformeRapido('mes_actual')">
+                                <i class="fas fa-calendar-day d-block mb-2 fs-4"></i>
+                                Mes Actual
+                            </a>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <a href="#" class="btn btn-outline-secondary w-100 py-3" onclick="generarInformeRapido('mes_anterior')">
+                                <i class="fas fa-calendar-minus d-block mb-2 fs-4"></i>
+                                Mes Anterior
+                            </a>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <a href="{{ url_for('informe_mensual') }}" class="btn btn-outline-secondary w-100 py-3">
+                                <i class="fas fa-sliders-h d-block mb-2 fs-4"></i>
+                                Personalizado
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-info text-white">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-question-circle me-1"></i> Ayuda</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="font-weight-bold">¿Cómo usar los informes?</h6>
+                        <p class="small text-muted">Los informes te permiten analizar el rendimiento de tu gimnasio y calcular los pagos a los profesores. Selecciona el tipo de informe y el período para generar el informe.</p>
+                    </div>
+                    <div>
+                        <h6 class="font-weight-bold">¿Necesitas ayuda?</h6>
+                        <p class="small text-muted">Si necesitas ayuda para usar los informes, contacta al administrador del sistema.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function generarInformeRapido(tipo) {
+        // Crear formulario dinámicamente
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for('informe_mensual') }}';
+        
+        // Agregar token CSRF
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+        
+        // Crear los campos de mes y año
+        const fechaActual = new Date();
+        let mes = fechaActual.getMonth() + 1; // JavaScript meses van de 0-11
+        let anio = fechaActual.getFullYear();
+        
+        switch(tipo) {
+            case 'mes_actual':
+                // Usar el mes y año actual
+                break;
+            case 'mes_anterior':
+                mes = mes - 1;
+                if (mes === 0) {
+                    mes = 12;
+                    anio = anio - 1;
+                }
+                break;
+        }
+        
+        // Agregar campos al formulario
+        const mesInput = document.createElement('input');
+        mesInput.type = 'hidden';
+        mesInput.name = 'mes';
+        mesInput.value = mes;
+        form.appendChild(mesInput);
+        
+        const anioInput = document.createElement('input');
+        anioInput.type = 'hidden';
+        anioInput.name = 'anio';
+        anioInput.value = anio;
+        form.appendChild(anioInput);
+        
+        // Agregar el formulario al documento y enviarlo
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
+{% endblock %} 

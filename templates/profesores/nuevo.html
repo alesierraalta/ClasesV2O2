@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Profesor - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('listar_profesores') }}">Profesores</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Nuevo Profesor</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Registrar Nuevo Profesor</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('nuevo_profesor') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="apellido" class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" id="apellido" name="apellido" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tarifa_por_clase" class="form-label">Tarifa por Clase ($) *</label>
+                            <input type="number" class="form-control" id="tarifa_por_clase" name="tarifa_por_clase" step="0.01" min="0" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="telefono" name="telefono">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('listar_profesores') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

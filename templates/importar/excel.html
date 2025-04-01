@@ -1,0 +1,768 @@
+{% extends 'base.html' %}
+
+{% block title %}Importar Asistencia desde Excel - Sistema de Gestión de Clases{% endblock %}
+
+{% block styles %}
+<style>
+    /* Estilos mejorados para los tipos de clase */
+    .radio-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        border-width: 2px !important;
+    }
+
+    .radio-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    /* Estilos para MOVE */
+    .classe-move-bg {
+        background: linear-gradient(145deg, rgba(40,167,69,0.05) 0%, rgba(40,167,69,0.15) 100%);
+        border-color: rgba(40,167,69,0.3) !important;
+    }
+    .classe-move-bg:hover {
+        background: linear-gradient(145deg, rgba(40,167,69,0.1) 0%, rgba(40,167,69,0.25) 100%);
+        border-color: rgba(40,167,69,0.5) !important;
+    }
+    .classe-move-bg input[type="radio"]:checked + label {
+        color: #28a745;
+    }
+    .classe-move-bg input[type="radio"]:checked ~ .check {
+        border-color: #28a745;
+    }
+
+    /* Estilos para RIDE */
+    .classe-ride-bg {
+        background: linear-gradient(145deg, rgba(0,123,255,0.05) 0%, rgba(0,123,255,0.15) 100%);
+        border-color: rgba(0,123,255,0.3) !important;
+    }
+    .classe-ride-bg:hover {
+        background: linear-gradient(145deg, rgba(0,123,255,0.1) 0%, rgba(0,123,255,0.25) 100%);
+        border-color: rgba(0,123,255,0.5) !important;
+    }
+    .classe-ride-bg input[type="radio"]:checked + label {
+        color: #007bff;
+    }
+    .classe-ride-bg input[type="radio"]:checked ~ .check {
+        border-color: #007bff;
+    }
+
+    /* Estilos para BOX */
+    .classe-box-bg {
+        background: linear-gradient(145deg, rgba(220,53,69,0.05) 0%, rgba(220,53,69,0.15) 100%);
+        border-color: rgba(220,53,69,0.3) !important;
+    }
+    .classe-box-bg:hover {
+        background: linear-gradient(145deg, rgba(220,53,69,0.1) 0%, rgba(220,53,69,0.25) 100%);
+        border-color: rgba(220,53,69,0.5) !important;
+    }
+    .classe-box-bg input[type="radio"]:checked + label {
+        color: #dc3545;
+    }
+    .classe-box-bg input[type="radio"]:checked ~ .check {
+        border-color: #dc3545;
+    }
+
+    /* Estilo para radio button seleccionado */
+    .radio-card input[type="radio"]:checked + label::after {
+        content: "";
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: currentColor;
+        opacity: 0.2;
+    }
+
+    .radio-card input[type="radio"]:checked + label::before {
+        content: "✓";
+        position: absolute;
+        right: 10px;
+        top: 8px;
+        font-size: 14px;
+        color: white;
+        z-index: 1;
+    }
+
+    /* Icono modificado */
+    .radio-card .fas {
+        font-size: 1.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Importar Asistencia</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h4 mb-0"><i class="fas fa-file-excel me-2"></i> Importar Registros de Asistencia</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i> Instrucciones para la importación</h5>
+                        <p>Esta herramienta le permite importar registros históricos de asistencia desde archivos Excel. Es necesario que especifique el tipo de clase (MOVE, RIDE, BOX) antes de realizar la importación.</p>
+                        <hr>
+                        <p class="mb-0">Importante: El sistema intentará validar los datos antes de importarlos, pero es recomendable verificarlos después de la importación.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h5 mb-0"><i class="fas fa-clipboard-check me-2"></i> Importar Asistencia</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h4 class="mb-3">Información requerida</h4>
+                            <p>Importe registros históricos de asistencia desde un archivo Excel. El archivo debe contener las siguientes columnas:</p>
+                            <ul class="list-group mb-3">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Intructor (Nombre del profesor)
+                                    <span class="badge bg-primary rounded-pill">Obligatorio</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Fecha (DD/MM/YYYY)
+                                    <span class="badge bg-primary rounded-pill">Obligatorio</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Hora (Hora de la clase)
+                                    <span class="badge bg-primary rounded-pill">Obligatorio</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Clase (Nombre de la clase)
+                                    <span class="badge bg-primary rounded-pill">Obligatorio</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Asistentes (Cantidad de alumnos)
+                                    <span class="badge bg-primary rounded-pill">Obligatorio</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Inicio (Hora real de inicio)
+                                    <span class="badge bg-secondary rounded-pill">Opcional</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Observaciones (Notas adicionales)
+                                    <span class="badge bg-secondary rounded-pill">Opcional</span>
+                                </li>
+                            </ul>
+                            <a href="{{ url_for('index') }}#" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-download me-1"></i> Descargar plantilla
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i> Seleccionar tipo de clase</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-4">
+                                        <label for="tipo_clase_asistencia" class="form-label fw-bold mb-3">Tipo de clase a importar:</label>
+                                        <div class="d-flex flex-column gap-3 mt-3">
+                                            <div class="form-check form-check-inline p-3 border rounded classe-move-bg card-hover radio-card">
+                                                <input class="form-check-input" type="radio" name="tipo_clase_asistencia" id="tipo_move" value="MOVE">
+                                                <label class="form-check-label fw-bold w-100" for="tipo_move">
+                                                    <i class="fas fa-running me-2"></i> MOVE
+                                                </label>
+                                            </div>
+                                            <div class="form-check form-check-inline p-3 border rounded classe-ride-bg card-hover radio-card">
+                                                <input class="form-check-input" type="radio" name="tipo_clase_asistencia" id="tipo_ride" value="RIDE">
+                                                <label class="form-check-label fw-bold w-100" for="tipo_ride">
+                                                    <i class="fas fa-bicycle me-2"></i> RIDE
+                                                </label>
+                                            </div>
+                                            <div class="form-check form-check-inline p-3 border rounded classe-box-bg card-hover radio-card">
+                                                <input class="form-check-input" type="radio" name="tipo_clase_asistencia" id="tipo_box" value="BOX">
+                                                <label class="form-check-label fw-bold w-100" for="tipo_box">
+                                                    <i class="fas fa-fist-raised me-2"></i> BOX
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="form-text mt-2">Seleccione el tipo de clase para las asistencias que va a importar. Todas las clases importadas tendrán este tipo.</div>
+                                    </div>
+                                    
+                                    <form method="POST" action="{{ url_for('importar_asistencia_excel') }}" enctype="multipart/form-data" class="dropzone mt-4" id="asistenciaDropzone">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="fallback">
+                                            <input name="file" type="file" accept=".xlsx, .xls" />
+                                        </div>
+                                        <div class="dz-message" data-dz-message>
+                                            <div class="icon">
+                                                <i class="fas fa-cloud-upload-alt fa-3x text-primary"></i>
+                                            </div>
+                                            <h4 class="mt-2">Arrastre el archivo Excel aquí o haga clic para seleccionarlo</h4>
+                                            <span class="text-muted">Solo se permiten archivos Excel (.xlsx, .xls)</span>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="card-footer bg-white text-center">
+                                    <button id="importAsistencia" class="btn btn-success" disabled>
+                                        <i class="fas fa-file-import me-1"></i> Importar Registros de Asistencia
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="asistenciaPreview" style="display: none;">
+                        <h5 class="mb-3 border-bottom pb-2">Vista previa de datos a importar</h5>
+                        <div class="alert alert-warning mb-3" id="asistenciaWarning" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i> <span id="asistenciaWarningMessage"></span>
+                        </div>
+                        
+                        <!-- Filtro de registros -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" id="filtroTextoAsistencia" placeholder="Buscar por instructor, clase o fecha...">
+                                    <button class="btn btn-outline-secondary" type="button" id="limpiarFiltroAsistencia">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" id="filtroEstadoAsistencia">
+                                    <option value="todos">Todos los estados</option>
+                                    <option value="valido">Válidos</option>
+                                    <option value="invalido">Con errores</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered table-hover" id="asistenciaTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fila</th>
+                                        <th>Instructor</th>
+                                        <th>Fecha</th>
+                                        <th>Clase</th>
+                                        <th>Hora</th>
+                                        <th>Asistentes</th>
+                                        <th>Hora de Inicio</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="text-muted">Mostrando <span id="asistenciaFilterCount">0</span> de <span id="asistenciaCount">0</span> registros</span>
+                            <div>
+                                <button id="cancelAsistencia" class="btn btn-secondary me-2">Cancelar</button>
+                                <button id="confirmAsistencia" class="btn btn-primary">Confirmar Importación</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resultados de importación -->
+    <div id="resultadosAsistencia" class="row mt-4" style="display: none;">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="alert" id="resultadoAlertAsistencia" role="alert">
+                        <i id="resultadoIconAsistencia" class="fas fa-check-circle me-2"></i>
+                        <span id="resultadoMensajeAsistencia"></span>
+                    </div>
+                    
+                    <h5 class="mb-3">Detalle de la importación</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover" id="resultadosAsistenciaTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fila</th>
+                                    <th>Instructor</th>
+                                    <th>Fecha</th>
+                                    <th>Clase</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button id="cerrarResultadosAsistencia" class="btn btn-primary">
+                            <i class="fas fa-check me-1"></i> Aceptar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
+
+<script>
+    // Desactivar configuración automática de Dropzone
+    Dropzone.autoDiscover = false;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurar Dropzone para asistencia
+        const asistenciaDropzone = new Dropzone('#asistenciaDropzone', {
+            url: '#',
+            autoProcessQueue: false,
+            maxFiles: 1,
+            acceptedFiles: '.xlsx,.xls',
+            addRemoveLinks: true,
+            dictRemoveFile: 'Quitar',
+            init: function() {
+                this.on('addedfile', function(file) {
+                    checkAsistenciaFormValid();
+                });
+                this.on('removedfile', function() {
+                    document.getElementById('importAsistencia').setAttribute('disabled', 'disabled');
+                });
+            }
+        });
+        
+        // Permitir clic en toda la tarjeta para seleccionar el radio button
+        document.querySelectorAll('.radio-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Solo activar si no se hizo clic directamente en el input
+                if (e.target.tagName !== 'INPUT') {
+                    const radio = this.querySelector('input[type="radio"]');
+                    radio.checked = true;
+                    
+                    // Disparar el evento change para que se ejecute la validación
+                    const event = new Event('change');
+                    radio.dispatchEvent(event);
+                }
+            });
+        });
+        
+        // Manejar cambios en los radio buttons de tipo de clase
+        document.querySelectorAll('input[name="tipo_clase_asistencia"]').forEach(radio => {
+            radio.addEventListener('change', checkAsistenciaFormValid);
+        });
+        
+        // Función para verificar si el formulario de asistencia es válido
+        function checkAsistenciaFormValid() {
+            const tipoClaseSelected = document.querySelector('input[name="tipo_clase_asistencia"]:checked');
+            const hasFiles = asistenciaDropzone.files.length > 0;
+            
+            if (tipoClaseSelected && hasFiles) {
+                document.getElementById('importAsistencia').removeAttribute('disabled');
+            } else {
+                document.getElementById('importAsistencia').setAttribute('disabled', 'disabled');
+            }
+        }
+        
+        // Manejar clic en botón de importar asistencia
+        document.getElementById('importAsistencia').addEventListener('click', function() {
+            const tipoClaseSelected = document.querySelector('input[name="tipo_clase_asistencia"]:checked');
+            
+            if (!tipoClaseSelected) {
+                showToast("Error", "Debe seleccionar un tipo de clase antes de importar", "danger");
+                return;
+            }
+            
+            // Mostrar vista previa de datos
+            document.getElementById('asistenciaPreview').style.display = 'block';
+            
+            // Procesar el archivo Excel
+            const file = asistenciaDropzone.files[0];
+            if (file) {
+                processExcelFile(file);
+            }
+        });
+        
+        // Función para procesar archivo Excel de asistencia
+        function processExcelFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // Tomar la primera hoja
+                const firstSheet = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheet];
+                
+                // Convertir a JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1, raw: false});
+                
+                if (jsonData.length < 2) {
+                    showToast("Error", "El archivo no contiene datos suficientes", "danger");
+                    return;
+                }
+                
+                // Buscar índices de columnas requeridas
+                const headers = jsonData[0].map(h => String(h).trim());
+                const instructorIdx = headers.findIndex(h => h.includes('Intructor') || h.includes('Profesor'));
+                const fechaIdx = headers.findIndex(h => h.includes('Fecha'));
+                const horaIdx = headers.findIndex(h => h.includes('Hora'));
+                const claseIdx = headers.findIndex(h => h.includes('Clase'));
+                const asistentesIdx = headers.findIndex(h => h.includes('Asistentes') || h.includes('Alumnos'));
+                const inicioIdx = headers.findIndex(h => h.includes('Inicio') || h.includes('Llegada'));
+                
+                // Verificar columnas requeridas
+                const missingColumns = [];
+                if (instructorIdx === -1) missingColumns.push('Instructor');
+                if (fechaIdx === -1) missingColumns.push('Fecha');
+                if (horaIdx === -1) missingColumns.push('Hora');
+                if (claseIdx === -1) missingColumns.push('Clase');
+                if (asistentesIdx === -1) missingColumns.push('Asistentes');
+                
+                if (missingColumns.length > 0) {
+                    const message = `El archivo no contiene las columnas requeridas: ${missingColumns.join(', ')}`;
+                    document.getElementById('asistenciaWarningMessage').textContent = message;
+                    document.getElementById('asistenciaWarning').style.display = 'block';
+                    return;
+                } else {
+                    document.getElementById('asistenciaWarning').style.display = 'none';
+                }
+                
+                // Llenar tabla de vista previa
+                const tableBody = document.getElementById('asistenciaTable').querySelector('tbody');
+                tableBody.innerHTML = '';
+                
+                // Procesar filas (omitir encabezado)
+                const rows = jsonData.slice(1);
+                let validRows = 0;
+                
+                // Función para convertir un valor decimal de Excel a formato de hora HH:MM
+                function convertExcelTimeToHHMM(excelTime) {
+                    if (!excelTime && excelTime !== 0) return 'N/A';
+                    
+                    // Verificar si es un valor numérico o ya es una cadena de texto con formato
+                    if (typeof excelTime === 'string' && excelTime.includes(':')) {
+                        return excelTime; // Ya tiene el formato correcto
+                    }
+                    
+                    try {
+                        // Convertir valor decimal a horas y minutos
+                        const totalHours = excelTime * 24;
+                        const hours = Math.floor(totalHours);
+                        const minutes = Math.floor((totalHours - hours) * 60);
+                        
+                        // Formatear como HH:MM
+                        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    } catch (e) {
+                        console.error("Error al convertir hora:", e);
+                        return excelTime || 'N/A';
+                    }
+                }
+                
+                rows.forEach((row, index) => {
+                    if (row.length === 0 || !row[instructorIdx]) return; // Saltar filas vacías
+                    
+                    validRows++;
+                    const tr = document.createElement('tr');
+                    tr.dataset.estado = 'valido';
+                    
+                    // Número de fila
+                    const tdFila = document.createElement('td');
+                    tdFila.textContent = index + 2; // +2 por encabezado y 1-indexed
+                    tr.appendChild(tdFila);
+                    
+                    // Instructor
+                    const tdInstructor = document.createElement('td');
+                    tdInstructor.textContent = row[instructorIdx] || 'N/A';
+                    if (!row[instructorIdx]) {
+                        tdInstructor.classList.add('text-danger');
+                        tr.dataset.estado = 'invalido';
+                    }
+                    tr.appendChild(tdInstructor);
+                    
+                    // Fecha
+                    const tdFecha = document.createElement('td');
+                    const fechaObj = row[fechaIdx] instanceof Date ? row[fechaIdx] : new Date(row[fechaIdx]);
+                    tdFecha.textContent = isNaN(fechaObj) ? row[fechaIdx] || 'N/A' : fechaObj.toLocaleDateString();
+                    if (!row[fechaIdx]) {
+                        tdFecha.classList.add('text-danger');
+                        tr.dataset.estado = 'invalido';
+                    }
+                    tr.appendChild(tdFecha);
+                    
+                    // Clase
+                    const tdClase = document.createElement('td');
+                    tdClase.textContent = row[claseIdx] || 'N/A';
+                    if (!row[claseIdx]) {
+                        tdClase.classList.add('text-danger');
+                        tr.dataset.estado = 'invalido';
+                    }
+                    tr.appendChild(tdClase);
+                    
+                    // Hora
+                    const tdHora = document.createElement('td');
+                    tdHora.textContent = convertExcelTimeToHHMM(row[horaIdx]);
+                    if (!row[horaIdx] && row[horaIdx] !== 0) {
+                        tdHora.classList.add('text-danger');
+                        tr.dataset.estado = 'invalido';
+                    }
+                    tr.appendChild(tdHora);
+                    
+                    // Asistentes
+                    const tdAsistentes = document.createElement('td');
+                    tdAsistentes.textContent = row[asistentesIdx] || '0';
+                    tr.appendChild(tdAsistentes);
+                    
+                    // Hora de inicio
+                    const tdInicio = document.createElement('td');
+                    tdInicio.textContent = inicioIdx !== -1 ? convertExcelTimeToHHMM(row[inicioIdx]) : 'N/A';
+                    tr.appendChild(tdInicio);
+                    
+                    // Estado
+                    const tdEstado = document.createElement('td');
+                    if (tr.dataset.estado === 'invalido') {
+                        tdEstado.innerHTML = '<span class="badge bg-danger">Error</span>';
+                    } else {
+                        tdEstado.innerHTML = '<span class="badge bg-success">Válido</span>';
+                    }
+                    tr.appendChild(tdEstado);
+                    
+                    tableBody.appendChild(tr);
+                });
+                
+                // Actualizar contadores
+                document.getElementById('asistenciaCount').textContent = validRows;
+                document.getElementById('asistenciaFilterCount').textContent = validRows;
+                
+                // Configurar filtros
+                setupAsistenciaFilters();
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // Configurar filtros para la tabla de asistencia
+        function setupAsistenciaFilters() {
+            // Filtro de texto
+            document.getElementById('filtroTextoAsistencia').addEventListener('input', function() {
+                filterAsistenciaTable();
+            });
+            
+            // Filtro de estado
+            document.getElementById('filtroEstadoAsistencia').addEventListener('change', function() {
+                filterAsistenciaTable();
+            });
+            
+            // Botón limpiar filtro
+            document.getElementById('limpiarFiltroAsistencia').addEventListener('click', function() {
+                document.getElementById('filtroTextoAsistencia').value = '';
+                document.getElementById('filtroEstadoAsistencia').value = 'todos';
+                filterAsistenciaTable();
+            });
+        }
+        
+        // Función para filtrar tabla de asistencia
+        function filterAsistenciaTable() {
+            const textFilter = document.getElementById('filtroTextoAsistencia').value.toLowerCase();
+            const statusFilter = document.getElementById('filtroEstadoAsistencia').value;
+            
+            const rows = document.querySelectorAll('#asistenciaTable tbody tr');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                let shouldShow = true;
+                
+                // Filtrar por texto
+                if (textFilter) {
+                    const hasMatch = Array.from(row.querySelectorAll('td')).some(cell => 
+                        cell.textContent.toLowerCase().includes(textFilter)
+                    );
+                    if (!hasMatch) shouldShow = false;
+                }
+                
+                // Filtrar por estado
+                if (statusFilter !== 'todos') {
+                    if (statusFilter === 'valido' && row.dataset.estado !== 'valido') shouldShow = false;
+                    if (statusFilter === 'invalido' && row.dataset.estado !== 'invalido') shouldShow = false;
+                }
+                
+                // Mostrar u ocultar fila
+                row.style.display = shouldShow ? '' : 'none';
+                if (shouldShow) visibleCount++;
+            });
+            
+            // Actualizar contador de filtro
+            document.getElementById('asistenciaFilterCount').textContent = visibleCount;
+        }
+        
+        // Botones para cancelar/confirmar vista previa de asistencia
+        document.getElementById('cancelAsistencia').addEventListener('click', function() {
+            document.getElementById('asistenciaPreview').style.display = 'none';
+        });
+        
+        document.getElementById('confirmAsistencia').addEventListener('click', function() {
+            // Obtener el tipo de clase seleccionado
+            const tipoClase = document.querySelector('input[name="tipo_clase_asistencia"]:checked').value;
+            
+            // Mostrar indicador de carga
+            document.getElementById('confirmAsistencia').disabled = true;
+            document.getElementById('confirmAsistencia').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+            
+            // Crear FormData y adjuntar el archivo
+            const formData = new FormData();
+            formData.append('file', asistenciaDropzone.files[0]);
+            formData.append('tipo_clase', tipoClase);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            // Obtener la URL del formulario
+            const formAction = document.getElementById('asistenciaDropzone').getAttribute('action');
+            
+            // Enviar solicitud AJAX al servidor
+            fetch(formAction, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Restaurar botón
+                document.getElementById('confirmAsistencia').disabled = false;
+                document.getElementById('confirmAsistencia').innerHTML = '<i class="fas fa-file-import me-1"></i> Confirmar Importación';
+                
+                // Mostrar resultados
+                document.getElementById('asistenciaPreview').style.display = 'none';
+                document.getElementById('resultadosAsistencia').style.display = 'block';
+                
+                // Preparar alerta de resultados
+                const alertElement = document.getElementById('resultadoAlertAsistencia');
+                const iconElement = document.getElementById('resultadoIconAsistencia');
+                const mensajeElement = document.getElementById('resultadoMensajeAsistencia');
+                
+                if (data.success) {
+                    alertElement.className = 'alert alert-success';
+                    iconElement.className = 'fas fa-check-circle me-2';
+                    mensajeElement.textContent = data.message;
+                    
+                    // Llenar tabla de resultados
+                    const tableBody = document.getElementById('resultadosAsistenciaTable').querySelector('tbody');
+                    tableBody.innerHTML = '';
+                    
+                    if (data.results && data.results.detalles) {
+                        data.results.detalles.forEach(detail => {
+                            const tr = document.createElement('tr');
+                            
+                            // Fila
+                            const tdFila = document.createElement('td');
+                            tdFila.textContent = detail.fila;
+                            tr.appendChild(tdFila);
+                            
+                            // Instructor
+                            const tdInstructor = document.createElement('td');
+                            tdInstructor.textContent = detail.profesor;
+                            tr.appendChild(tdInstructor);
+                            
+                            // Fecha
+                            const tdFecha = document.createElement('td');
+                            tdFecha.textContent = detail.fecha;
+                            tr.appendChild(tdFecha);
+                            
+                            // Clase
+                            const tdClase = document.createElement('td');
+                            tdClase.textContent = detail.clase;
+                            tr.appendChild(tdClase);
+                            
+                            // Estado
+                            const tdEstado = document.createElement('td');
+                            if (detail.estado === 'Importado') {
+                                tdEstado.innerHTML = '<span class="badge bg-success">Importado</span>';
+                                if (detail.notas) {
+                                    tdEstado.innerHTML += `<small class="d-block text-muted mt-1">${detail.notas}</small>`;
+                                }
+                            } else {
+                                tdEstado.innerHTML = '<span class="badge bg-danger">Error</span>';
+                                if (detail.errores && detail.errores.length > 0) {
+                                    tdEstado.innerHTML += `<small class="d-block text-danger mt-1">${detail.errores.join(', ')}</small>`;
+                                }
+                            }
+                            tr.appendChild(tdEstado);
+                            
+                            tableBody.appendChild(tr);
+                        });
+                    }
+                } else {
+                    alertElement.className = 'alert alert-danger';
+                    iconElement.className = 'fas fa-exclamation-circle me-2';
+                    mensajeElement.textContent = data.message || 'Error al importar los datos';
+                }
+            })
+            .catch(error => {
+                console.error('Error al enviar el archivo:', error);
+                document.getElementById('confirmAsistencia').disabled = false;
+                document.getElementById('confirmAsistencia').innerHTML = '<i class="fas fa-file-import me-1"></i> Confirmar Importación';
+                showToast("Error", "Error al comunicarse con el servidor", "danger");
+            });
+        });
+        
+        document.getElementById('cerrarResultadosAsistencia').addEventListener('click', function() {
+            document.getElementById('resultadosAsistencia').style.display = 'none';
+            asistenciaDropzone.removeAllFiles();
+            document.getElementById('importAsistencia').setAttribute('disabled', 'disabled');
+            
+            // Desmarcar los radio buttons
+            document.querySelectorAll('input[name="tipo_clase_asistencia"]').forEach(radio => {
+                radio.checked = false;
+            });
+        });
+        
+        // Función para mostrar notificaciones toast
+        function showToast(title, message, type) {
+            const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+            
+            const toastEl = document.createElement('div');
+            toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            
+            const toastContent = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}</strong>: ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            
+            toastEl.innerHTML = toastContent;
+            toastContainer.appendChild(toastEl);
+            
+            const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+            toast.show();
+            
+            toastEl.addEventListener('hidden.bs.toast', function() {
+                toastEl.remove();
+            });
+        }
+        
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = 1050;
+            document.body.appendChild(container);
+            return container;
+        }
+    });
+</script>
+{% endblock %} 

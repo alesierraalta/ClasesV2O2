@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}Control de Asistencia con Visualización{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Control de Asistencia - {{ hoy.strftime('%d/%m/%Y') }}</h1>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>Clases Pendientes</h5>
+                </div>
+                <div class="card-body">
+                    {% if horarios_pendientes %}
+                        <div class="list-group">
+                            {% for horario in horarios_pendientes %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">{{ horario.nombre }}</h5>
+                                        <small>{{ horario.hora_inicio.strftime('%H:%M') }}</small>
+                                    </div>
+                                    <p class="mb-1">Profesor: {{ horario.profesor }}</p>
+                                    <p class="mb-1">Tipo: {{ horario.tipo_clase }}</p>
+                                    
+                                    {% if temp_audio_files and temp_audio_files.get(horario.id) %}
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <h5>Audio grabado</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <audio id="audio-player-{{ horario.id }}" controls class="w-100 mb-2">
+                                                <source src="{{ url_for('static', filename='audio/temp_horario_' + horario.id|string + '.mp3') }}" type="audio/mp3">
+                                                <source src="{{ url_for('static', filename='audio/temp_horario_' + horario.id|string + '.wav') }}" type="audio/wav">
+                                                <source src="{{ url_for('static', filename='audio/temp_horario_' + horario.id|string + '.ogg') }}" type="audio/ogg">
+                                                Tu navegador no soporta la reproducción de audio.
+                                            </audio>
+                                            
+                                            <!-- Waveform visualization -->
+                                            <div id="waveform-container-{{ horario.id }}" class="position-relative">
+                                                <img id="waveform-{{ horario.id }}" src="{{ url_for('audio.audio_waveform', horario_id=horario.id) }}" 
+                                                     class="w-100" style="height: 80px;">
+                                                <canvas id="progressCanvas-{{ horario.id }}" 
+                                                        class="position-absolute top-0 left-0" style="pointer-events: none;"></canvas>
+                                            </div>
+                                            
+                                            <script>
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                const audio = document.getElementById('audio-player-{{ horario.id }}');
+                                                const canvas = document.getElementById('progressCanvas-{{ horario.id }}');
+                                                const ctx = canvas.getContext('2d');
+                                                const waveformImg = document.getElementById('waveform-{{ horario.id }}');
+                                            
+                                                // Set canvas size to match image
+                                                function resizeCanvas() {
+                                                    canvas.width = waveformImg.offsetWidth;
+                                                    canvas.height = waveformImg.offsetHeight;
+                                                }
+                                                
+                                                // Initial resize
+                                                setTimeout(resizeCanvas, 100); // Small delay to ensure image is loaded
+                                                window.addEventListener('resize', resizeCanvas);
+                                            
+                                                // Update progress indicator
+                                                audio.addEventListener('timeupdate', function() {
+                                                    const progress = audio.currentTime / audio.duration;
+                                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                                    
+                                                    // Draw progress line
+                                                    ctx.beginPath();
+                                                    ctx.moveTo(progress * canvas.width, 0);
+                                                    ctx.lineTo(progress * canvas.width, canvas.height);
+                                                    ctx.strokeStyle = '#ff0000';
+                                                    ctx.lineWidth = 2;
+                                                    ctx.stroke();
+                                                });
+                                            });
+                                            </script>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('registrar_asistencia', horario_id=horario.id) }}" class="btn btn-primary btn-sm">Registrar Asistencia</a>
+                                        <button class="btn btn-info btn-sm" onclick="iniciarGrabacion({{ horario.id }})">Grabar Audio</button>
+                                        <button class="btn btn-danger btn-sm" onclick="detenerGrabacion({{ horario.id }})" style="display: none;" id="btn-detener-{{ horario.id }}">Detener Grabación</button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No hay clases pendientes para hoy.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5>Clases Registradas</h5>
+                </div>
+                <div class="card-body">
+                    {% if clases_realizadas %}
+                        <div class="list-group">
+                            {% for clase in clases_realizadas %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">{{ clase.horario.nombre }}</h5>
+                                        <small>
+                                            {% if clase.hora_llegada_profesor %}
+                                                {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                            {% else %}
+                                                No registrada
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <p class="mb-1">Profesor: {{ clase.profesor }}</p>
+                                    <p class="mb-1">Alumnos: {{ clase.cantidad_alumnos }}</p>
+                                    <p class="mb-1">Estado: {{ clase.puntualidad() }}</p>
+                                    
+                                    {% if clase.audio_file %}
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <h5>Audio grabado</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <audio id="audio-player-reg-{{ clase.id }}" controls class="w-100 mb-2">
+                                                <source src="{{ url_for('static', filename='audio/' + clase.audio_file) }}" type="audio/mpeg">
+                                                Tu navegador no soporta la reproducción de audio.
+                                            </audio>
+                                            
+                                            <!-- Waveform visualization -->
+                                            <div id="waveform-container-reg-{{ clase.id }}" class="position-relative">
+                                                <img id="waveform-reg-{{ clase.id }}" src="{{ url_for('audio.audio_waveform', horario_id=clase.horario_id) }}" 
+                                                     class="w-100" style="height: 80px;">
+                                                <canvas id="progressCanvas-reg-{{ clase.id }}" 
+                                                        class="position-absolute top-0 left-0" style="pointer-events: none;"></canvas>
+                                            </div>
+                                            
+                                            <script>
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                const audio = document.getElementById('audio-player-reg-{{ clase.id }}');
+                                                const canvas = document.getElementById('progressCanvas-reg-{{ clase.id }}');
+                                                const ctx = canvas.getContext('2d');
+                                                const waveformImg = document.getElementById('waveform-reg-{{ clase.id }}');
+                                            
+                                                // Set canvas size to match image
+                                                function resizeCanvas() {
+                                                    canvas.width = waveformImg.offsetWidth;
+                                                    canvas.height = waveformImg.offsetHeight;
+                                                }
+                                                
+                                                // Initial resize
+                                                setTimeout(resizeCanvas, 100); // Small delay to ensure image is loaded
+                                                window.addEventListener('resize', resizeCanvas);
+                                            
+                                                // Update progress indicator
+                                                audio.addEventListener('timeupdate', function() {
+                                                    const progress = audio.currentTime / audio.duration;
+                                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                                    
+                                                    // Draw progress line
+                                                    ctx.beginPath();
+                                                    ctx.moveTo(progress * canvas.width, 0);
+                                                    ctx.lineTo(progress * canvas.width, canvas.height);
+                                                    ctx.strokeStyle = '#ff0000';
+                                                    ctx.lineWidth = 2;
+                                                    ctx.stroke();
+                                                });
+                                            });
+                                            </script>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('editar_asistencia', id=clase.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                                        <a href="{{ url_for('eliminar_asistencia', id=clase.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este registro?')">Eliminar</a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No hay clases registradas para hoy.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let horarioIdActual;
+
+    function iniciarGrabacion(horarioId) {
+        horarioIdActual = horarioId;
+        document.getElementById(`btn-detener-${horarioId}`).style.display = 'inline-block';
+        
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.start();
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'grabacion.mp3');
+                    formData.append('horario_id', horarioIdActual);
+
+                    fetch('/guardar_audio_temporal', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Reload the page to show the new audio
+                            location.reload();
+                        } else {
+                            alert('Error al guardar el audio: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error al guardar el audio');
+                    });
+                });
+            });
+    }
+
+    function detenerGrabacion(horarioId) {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            audioChunks = [];
+            document.getElementById(`btn-detener-${horarioId}`).style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

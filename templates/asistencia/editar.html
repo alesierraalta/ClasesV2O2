@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Asistencia - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('control_asistencia') }}">Control de Asistencia</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Asistencia</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h4 class="mb-0">Editar Asistencia: {{ clase.horario.nombre }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="alert alert-info">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Fecha:</strong> {{ clase.fecha.strftime('%d/%m/%Y') }}</p>
+                                    <p class="mb-1"><strong>Horario:</strong> {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Profesor:</strong> {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}</p>
+                                    <p class="mb-1"><strong>Capacidad máxima:</strong> {{ clase.horario.capacidad_maxima }} alumnos</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('editar_asistencia', id=clase.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="hora_llegada" class="form-label">Hora de llegada del profesor</label>
+                                <input type="time" class="form-control" id="hora_llegada" name="hora_llegada" value="{{ clase.hora_llegada_profesor.strftime('%H:%M') if clase.hora_llegada_profesor else '' }}">
+                                <div class="form-text">Dejar en blanco si no se registró la hora exacta.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cantidad_alumnos" class="form-label">Cantidad de alumnos *</label>
+                                <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" min="0" max="{{ clase.horario.capacidad_maxima }}" value="{{ clase.cantidad_alumnos }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" rows="3">{{ clase.observaciones }}</textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('control_asistencia') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-warning">Actualizar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

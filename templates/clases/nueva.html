@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Clase - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('listar_clases') }}">Clases</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Nueva Clase</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Registrar Nueva Clase</h4>
+                </div>
+                <div class="card-body">
+                    {% if profesores %}
+                    <form method="POST" action="{{ url_for('nueva_clase') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre de la Clase *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="fecha" class="form-label">Fecha *</label>
+                                <input type="date" class="form-control" id="fecha" name="fecha" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hora" class="form-label">Hora *</label>
+                                <input type="time" class="form-control" id="hora" name="hora" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="duracion" class="form-label">Duración (minutos) *</label>
+                                <input type="number" class="form-control" id="duracion" name="duracion" value="60" min="15" step="5" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cantidad_alumnos" class="form-label">Cantidad de Alumnos *</label>
+                                <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" value="0" min="0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="profesor_id" class="form-label">Profesor *</label>
+                            <select class="form-select" id="profesor_id" name="profesor_id" required>
+                                <option value="" selected disabled>Seleccione un profesor</option>
+                                {% for profesor in profesores %}
+                                <option value="{{ profesor.id }}">{{ profesor.nombre }} {{ profesor.apellido }} (Tarifa: ${{ profesor.tarifa_por_clase|round(2) }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('listar_clases') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-success">Guardar</button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i> No hay profesores registrados. Debe <a href="{{ url_for('nuevo_profesor') }}" class="alert-link">agregar al menos un profesor</a> antes de registrar una clase.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Establecer la fecha de hoy como valor predeterminado
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('fecha').value = today;
+    });
+</script>
+{% endblock %} 
