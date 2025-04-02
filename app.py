@@ -2530,7 +2530,14 @@ def registrar_asistencia_fecha(fecha, horario_id):
         db.session.commit()
         
         flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
-        return redirect(url_for('control_asistencia'))
+        
+        # Si la fecha es hoy, redirigir al control de asistencia
+        # Si es una fecha anterior, redirigir al historial de clases no registradas
+        hoy = datetime.now().date()
+        if fecha_obj == hoy:
+            return redirect(url_for('control_asistencia'))
+        else:
+            return redirect(url_for('clases_no_registradas'))
     
     return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
 
@@ -2544,7 +2551,7 @@ def registrar_clases_no_registradas():
         
         if not clases_ids:
             flash('No seleccionó ninguna clase para registrar', 'warning')
-            return redirect(url_for('informe_mensual'))
+            return redirect(url_for('clases_no_registradas'))
         
         clases_registradas = 0
         
@@ -2594,9 +2601,8 @@ def registrar_clases_no_registradas():
         else:
             flash('No se registró ninguna clase nueva', 'warning')
         
-        # Redirigir a la misma página de informe para ver los resultados actualizados
-        # Volvemos a la página de selección de mes y año
-        return redirect(url_for('informe_mensual'))
+        # Redirigir a la página de clases no registradas para ver el resultado actualizado
+        return redirect(url_for('clases_no_registradas'))
 
 # Add initialization code to ensure the application starts correctly
 if __name__ == '__main__':
