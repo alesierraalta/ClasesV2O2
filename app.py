@@ -800,6 +800,11 @@ def clases_no_registradas():
     fecha_inicio_str = request.args.get('fecha_inicio')
     fecha_fin_str = request.args.get('fecha_fin')
     profesor_id = request.args.get('profesor_id')
+    refresh = request.args.get('refresh')  # Usar para forzar actualización
+    
+    # Mensaje de depuración
+    timestamp_actual = int(time_module.time())
+    app.logger.info(f"Ejecutando clases_no_registradas con timestamp: {timestamp_actual}, refresh: {refresh}")
     
     # Fecha por defecto: últimos 30 días
     hoy = datetime.now().date()
@@ -848,6 +853,9 @@ def clases_no_registradas():
         ClaseRealizada.fecha <= fecha_fin
     ).all()
     
+    # Mensaje de depuración con el número de clases realizadas
+    app.logger.info(f"Total de clases realizadas encontradas: {len(clases_realizadas)}")
+    
     # 5. Filtrar las clases esperadas que no tienen un registro
     clases_no_registradas = []
     for clase_esperada in clases_esperadas:
@@ -860,6 +868,9 @@ def clases_no_registradas():
         
         if not encontrada:
             clases_no_registradas.append(clase_esperada)
+    
+    # Mensaje de depuración con el número de clases no registradas
+    app.logger.info(f"Total de clases no registradas: {len(clases_no_registradas)}")
     
     # Ordenar por fecha (más reciente primero) y luego por hora de inicio
     clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].hora_inicio), reverse=True)
@@ -2550,7 +2561,9 @@ def registrar_asistencia_fecha(fecha, horario_id):
         if fecha_obj == hoy:
             return redirect(url_for('control_asistencia'))
         else:
-            return redirect(url_for('clases_no_registradas'))
+            # Añadir timestamp para forzar actualización completa
+            timestamp = int(time_module.time())
+            return redirect(url_for('clases_no_registradas', refresh=timestamp))
     
     return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
 
@@ -2614,8 +2627,9 @@ def registrar_clases_no_registradas():
         else:
             flash('No se registró ninguna clase nueva', 'warning')
         
-        # Redirigir a la página de clases no registradas para ver el resultado actualizado
-        return redirect(url_for('clases_no_registradas'))
+        # Añadir timestamp para forzar actualización completa
+        timestamp = int(time_module.time())
+        return redirect(url_for('clases_no_registradas', refresh=timestamp))
 
 # Add initialization code to ensure the application starts correctly
 if __name__ == '__main__':
