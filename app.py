@@ -831,49 +831,48 @@ def clases_no_registradas():
         fechas.append(fecha_actual)
         fecha_actual += timedelta(days=1)
     
-    # 3. Generar las clases que deberían haberse realizado
-    clases_esperadas = []
-    for horario in horarios:
-        for fecha in fechas:
-            # Si el día de la semana coincide con el día del horario
-            if fecha.weekday() == horario.dia_semana:
-                # Creamos un objeto para representar la clase esperada
-                clase_esperada = {
-                    'fecha': fecha,
-                    'horario': horario,
-                    'profesor': horario.profesor,
-                    'tipo_clase': horario.tipo_clase,
-                    'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario.id}"
-                }
-                clases_esperadas.append(clase_esperada)
+    # 3. Crear un diccionario de clases ya registradas para búsqueda eficiente
+    # Formato: {(fecha, horario_id): True}
+    clases_registradas_dict = {}
     
-    # 4. Obtener las clases que sí se registraron en el período
+    # Obtener todas las clases registradas en el período
     clases_realizadas = ClaseRealizada.query.filter(
         ClaseRealizada.fecha >= fecha_inicio,
         ClaseRealizada.fecha <= fecha_fin
     ).all()
     
-    # Mensaje de depuración con el número de clases realizadas
-    app.logger.info(f"Total de clases realizadas encontradas: {len(clases_realizadas)}")
+    # Guardar las clases realizadas en el diccionario para búsqueda rápida
+    for clase in clases_realizadas:
+        key = (clase.fecha, clase.horario_id)
+        clases_registradas_dict[key] = True
     
-    # 5. Filtrar las clases esperadas que no tienen un registro
+    # 4. Generar las clases esperadas que NO están registradas
     clases_no_registradas = []
-    for clase_esperada in clases_esperadas:
-        encontrada = False
-        for clase_realizada in clases_realizadas:
-            if (clase_realizada.fecha == clase_esperada['fecha'] and
-                    clase_realizada.horario_id == clase_esperada['horario'].id):
-                encontrada = True
-                break
-        
-        if not encontrada:
-            clases_no_registradas.append(clase_esperada)
+    for horario in horarios:
+        for fecha in fechas:
+            # Si el día de la semana coincide con el día del horario
+            if fecha.weekday() == horario.dia_semana:
+                # Verificar si esta clase ya está registrada
+                key = (fecha, horario.id)
+                if key not in clases_registradas_dict:
+                    # Esta clase no está registrada, añadirla a la lista
+                    clase_esperada = {
+                        'fecha': fecha,
+                        'horario': horario,
+                        'profesor': horario.profesor,
+                        'tipo_clase': horario.tipo_clase,
+                        'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario.id}"
+                    }
+                    clases_no_registradas.append(clase_esperada)
     
-    # Mensaje de depuración con el número de clases no registradas
+    # Mensaje de depuración con el número de clases
+    app.logger.info(f"Total de clases registradas: {len(clases_realizadas)}")
     app.logger.info(f"Total de clases no registradas: {len(clases_no_registradas)}")
     
     # Ordenar por fecha (más reciente primero) y luego por hora de inicio
     clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].hora_inicio), reverse=True)
+    
+    print(f"DEBUG: Total clases encontradas - Registradas: {len(clases_realizadas)}, No registradas: {len(clases_no_registradas)}")
     
     profesores = Profesor.query.all()
     
@@ -2551,19 +2550,27 @@ def registrar_asistencia_fecha(fecha, horario_id):
             cantidad_alumnos=cantidad_alumnos,
             observaciones=observaciones
         )
-        db.session.add(nueva_clase)
-        db.session.commit()
         
-        flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
-        
-        # Si la fecha es hoy, redirigir al control de asistencia
-        # Si es una fecha anterior, redirigir al historial de clases no registradas
-        if fecha_obj == hoy:
-            return redirect(url_for('control_asistencia'))
-        else:
-            # Añadir timestamp para forzar actualización completa
-            timestamp = int(time_module.time())
-            return redirect(url_for('clases_no_registradas', refresh=timestamp))
+        try:
+            db.session.add(nueva_clase)
+            db.session.commit()
+            db.session.flush()  # Asegurarse de que los cambios se guarden
+            print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase.id}, Fecha: {fecha_obj}, Horario: {horario_id}")
+            
+            flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
+            
+            # Si la fecha es hoy, redirigir al control de asistencia
+            # Si es una fecha anterior, redirigir al historial de clases no registradas
+            if fecha_obj == hoy:
+                return redirect(url_for('control_asistencia'))
+            else:
+                # Añadir timestamp para forzar actualización completa
+                timestamp = int(time_module.time())
+                return redirect(url_for('clases_no_registradas', refresh=timestamp))
+        except Exception as e:
+            db.session.rollback()
+            print(f"ERROR: No se pudo registrar la clase - {str(e)}")
+            flash(f'Error al registrar la clase: {str(e)}', 'danger')
     
     return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
 
@@ -2580,6 +2587,7 @@ def registrar_clases_no_registradas():
             return redirect(url_for('clases_no_registradas'))
         
         clases_registradas = 0
+        clases_procesadas = []
         
         for clase_id in clases_ids:
             try:
@@ -2592,6 +2600,7 @@ def registrar_clases_no_registradas():
                 horario = HorarioClase.query.get(horario_id)
                 
                 if not horario:
+                    print(f"DEBUG: Horario no encontrado - ID: {horario_id}")
                     continue
                 
                 # Verificar si ya existe un registro para esta clase
@@ -2601,6 +2610,7 @@ def registrar_clases_no_registradas():
                 ).first()
                 
                 if clase_existente:
+                    print(f"DEBUG: Clase ya existe - Fecha: {fecha_obj}, Horario: {horario_id}")
                     continue
                 
                 # Crear un nuevo registro con 0 alumnos
@@ -2614,16 +2624,30 @@ def registrar_clases_no_registradas():
                 )
                 
                 db.session.add(nueva_clase)
+                db.session.flush()  # Para obtener el ID asignado
+                
                 clases_registradas += 1
+                clases_procesadas.append({
+                    'fecha': fecha_obj,
+                    'horario_id': horario_id,
+                    'id': nueva_clase.id
+                })
                 
             except Exception as e:
                 # Registrar el error pero continuar con las otras clases
                 app.logger.error(f"Error al registrar clase {clase_id}: {str(e)}")
+                print(f"ERROR: No se pudo registrar la clase {clase_id} - {str(e)}")
                 continue
         
         if clases_registradas > 0:
-            db.session.commit()
-            flash(f'Se registraron {clases_registradas} clases correctamente', 'success')
+            try:
+                db.session.commit()
+                print(f"DEBUG: Se registraron {clases_registradas} clases correctamente: {clases_procesadas}")
+                flash(f'Se registraron {clases_registradas} clases correctamente', 'success')
+            except Exception as e:
+                db.session.rollback()
+                print(f"ERROR: Error al guardar en la base de datos - {str(e)}")
+                flash(f'Error al guardar los cambios: {str(e)}', 'danger')
         else:
             flash('No se registró ninguna clase nueva', 'warning')
         
