@@ -428,6 +428,21 @@ def nuevo_horario():
             tipo_clase=request.form['tipo_clase']
         )
         db.session.add(horario)
+        db.session.flush()  # Get the horario ID without committing
+        
+        # Create a ClaseRealizada record for today if the class is scheduled for today
+        hoy = datetime.now().date()
+        if horario.dia_semana == hoy.weekday():
+            nueva_clase = ClaseRealizada(
+                fecha=hoy,
+                horario_id=horario.id,
+                profesor_id=horario.profesor_id,
+                hora_llegada_profesor=horario.hora_inicio,  # Default to scheduled time
+                cantidad_alumnos=0,
+                observaciones="Clase creada automáticamente"
+            )
+            db.session.add(nueva_clase)
+        
         db.session.commit()
         flash('Horario creado con éxito', 'success')
         return redirect(url_for('listar_horarios'))
@@ -2282,7 +2297,6 @@ def get_audio_storage_path(horario_id, filename=None):
 @app.route('/asistencia/fecha/<string:fecha>/<int:horario_id>', methods=['GET', 'POST'])
 def registrar_asistencia_fecha(fecha, horario_id):
     """Registrar asistencia para una fecha específica y horario"""
-    # Similar a registrar_asistencia, pero con fecha específica
     try:
         fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
     except ValueError:
@@ -2308,7 +2322,7 @@ def registrar_asistencia_fecha(fecha, horario_id):
                 hora_llegada = datetime.strptime(hora_llegada_str, '%H:%M').time()
             except ValueError:
                 flash('Formato de hora inválido. Use HH:MM', 'danger')
-                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj)
+                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
         else:
             hora_llegada = None
         
@@ -2327,7 +2341,7 @@ def registrar_asistencia_fecha(fecha, horario_id):
         flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
         return redirect(url_for('control_asistencia'))
     
-    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj)
+    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
 
 
 @app.route('/asistencia/registrar-clases-masivo', methods=['POST'])

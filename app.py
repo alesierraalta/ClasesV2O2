@@ -784,6 +784,89 @@ def historial_asistencia():
                            fecha_fin=fecha_fin,
                            profesor_id=profesor_id)
 
+@app.route('/asistencia/clases-no-registradas')
+def clases_no_registradas():
+    """
+    Muestra un historial de clases que no fueron registradas en su día
+    para facilitar su registro posterior
+    """
+    # Parámetros de filtro
+    fecha_inicio_str = request.args.get('fecha_inicio')
+    fecha_fin_str = request.args.get('fecha_fin')
+    profesor_id = request.args.get('profesor_id')
+    
+    # Fecha por defecto: últimos 30 días
+    hoy = datetime.now().date()
+    fecha_inicio = hoy - timedelta(days=30)
+    fecha_fin = hoy - timedelta(days=1)  # Hasta ayer
+    
+    # Aplicar filtros si existen
+    if fecha_inicio_str:
+        fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+    
+    if fecha_fin_str:
+        fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+    
+    # 1. Obtener todos los horarios activos
+    horarios = HorarioClase.query
+    if profesor_id and profesor_id != 'todos':
+        horarios = horarios.filter_by(profesor_id=int(profesor_id))
+    horarios = horarios.all()
+    
+    # 2. Generar todas las fechas en el rango
+    fechas = []
+    fecha_actual = fecha_inicio
+    while fecha_actual <= fecha_fin:
+        fechas.append(fecha_actual)
+        fecha_actual += timedelta(days=1)
+    
+    # 3. Generar las clases que deberían haberse realizado
+    clases_esperadas = []
+    for horario in horarios:
+        for fecha in fechas:
+            # Si el día de la semana coincide con el día del horario
+            if fecha.weekday() == horario.dia_semana:
+                # Creamos un objeto para representar la clase esperada
+                clase_esperada = {
+                    'fecha': fecha,
+                    'horario': horario,
+                    'profesor': horario.profesor,
+                    'tipo_clase': horario.tipo_clase,
+                    'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario.id}"
+                }
+                clases_esperadas.append(clase_esperada)
+    
+    # 4. Obtener las clases que sí se registraron en el período
+    clases_realizadas = ClaseRealizada.query.filter(
+        ClaseRealizada.fecha >= fecha_inicio,
+        ClaseRealizada.fecha <= fecha_fin
+    ).all()
+    
+    # 5. Filtrar las clases esperadas que no tienen un registro
+    clases_no_registradas = []
+    for clase_esperada in clases_esperadas:
+        encontrada = False
+        for clase_realizada in clases_realizadas:
+            if (clase_realizada.fecha == clase_esperada['fecha'] and
+                    clase_realizada.horario_id == clase_esperada['horario'].id):
+                encontrada = True
+                break
+        
+        if not encontrada:
+            clases_no_registradas.append(clase_esperada)
+    
+    # Ordenar por fecha (más reciente primero) y luego por hora de inicio
+    clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].hora_inicio), reverse=True)
+    
+    profesores = Profesor.query.all()
+    
+    return render_template('asistencia/clases_no_registradas.html',
+                           clases_no_registradas=clases_no_registradas,
+                           profesores=profesores,
+                           fecha_inicio=fecha_inicio,
+                           fecha_fin=fecha_fin,
+                           profesor_id=profesor_id)
+
 # Rutas para Informes
 @app.route('/informes')
 def informes():
@@ -2405,7 +2488,6 @@ def get_audio_storage_path(horario_id, filename=None):
 @app.route('/asistencia/fecha/<string:fecha>/<int:horario_id>', methods=['GET', 'POST'])
 def registrar_asistencia_fecha(fecha, horario_id):
     """Registrar asistencia para una fecha específica y horario"""
-    # Similar a registrar_asistencia, pero con fecha específica
     try:
         fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
     except ValueError:
@@ -2431,7 +2513,7 @@ def registrar_asistencia_fecha(fecha, horario_id):
                 hora_llegada = datetime.strptime(hora_llegada_str, '%H:%M').time()
             except ValueError:
                 flash('Formato de hora inválido. Use HH:MM', 'danger')
-                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj)
+                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
         else:
             hora_llegada = None
         
@@ -2450,7 +2532,7 @@ def registrar_asistencia_fecha(fecha, horario_id):
         flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
         return redirect(url_for('control_asistencia'))
     
-    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj)
+    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
 
 
 @app.route('/asistencia/registrar-clases-masivo', methods=['POST'])
