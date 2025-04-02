@@ -2489,9 +2489,17 @@ def get_audio_storage_path(horario_id, filename=None):
 def registrar_asistencia_fecha(fecha, horario_id):
     """Registrar asistencia para una fecha específica y horario"""
     try:
-        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
-    except ValueError:
-        flash('Formato de fecha inválido', 'danger')
+        # Procesamos la fecha manualmente para evitar problemas de formato
+        try:
+            year, month, day = map(int, fecha.split('-'))
+            fecha_obj = date(year, month, day)
+            app.logger.info(f"Fecha procesada: {fecha} -> {fecha_obj}")
+        except ValueError:
+            app.logger.error(f"Error al procesar la fecha: {fecha}")
+            flash('Formato de fecha inválido. Use YYYY-MM-DD.', 'danger')
+            return redirect(url_for('control_asistencia'))
+    except Exception as e:
+        flash(f'Error al procesar la fecha: {str(e)}', 'danger')
         return redirect(url_for('control_asistencia'))
     
     horario = HorarioClase.query.get_or_404(horario_id)
@@ -2534,6 +2542,9 @@ def registrar_asistencia_fecha(fecha, horario_id):
             cantidad_alumnos=cantidad_alumnos,
             observaciones=observaciones
         )
+        
+        app.logger.info(f"Registrando clase: fecha={fecha_obj}, horario_id={horario_id}, profesor_id={horario.profesor_id}")
+        
         db.session.add(nueva_clase)
         db.session.commit()
         
@@ -2561,18 +2572,33 @@ def registrar_clases_no_registradas():
             return redirect(url_for('clases_no_registradas'))
         
         clases_registradas = 0
+        errores = []
         
         for clase_id in clases_ids:
             try:
                 # El formato es 'YYYY-MM-DD|horario_id'
                 partes = clase_id.split('|')
-                fecha = partes[0]
+                fecha_str = partes[0]
                 horario_id = int(partes[1])
                 
-                fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+                # Asegurarse de que la fecha se procese correctamente
+                try:
+                    # Convertir explícitamente a year, month, day para evitar errores de interpretación
+                    year, month, day = map(int, fecha_str.split('-'))
+                    fecha_obj = date(year, month, day)
+                    
+                    # Log para depuración
+                    app.logger.info(f"Procesando clase: fecha_str={fecha_str}, fecha_obj={fecha_obj}, horario_id={horario_id}")
+                except ValueError as e:
+                    app.logger.error(f"Error al procesar la fecha {fecha_str}: {str(e)}")
+                    errores.append(f"Fecha inválida: {fecha_str}")
+                    continue
+                
                 horario = HorarioClase.query.get(horario_id)
                 
                 if not horario:
+                    app.logger.error(f"No se encontró el horario con ID {horario_id}")
+                    errores.append(f"Horario no encontrado: {horario_id}")
                     continue
                 
                 # Verificar si ya existe un registro para esta clase
@@ -2582,6 +2608,7 @@ def registrar_clases_no_registradas():
                 ).first()
                 
                 if clase_existente:
+                    app.logger.info(f"La clase ya existe: fecha={fecha_obj}, horario_id={horario_id}")
                     continue
                 
                 # Crear un nuevo registro con 0 alumnos
@@ -2600,13 +2627,18 @@ def registrar_clases_no_registradas():
             except Exception as e:
                 # Registrar el error pero continuar con las otras clases
                 app.logger.error(f"Error al registrar clase {clase_id}: {str(e)}")
+                errores.append(f"Error general: {str(e)}")
                 continue
         
         if clases_registradas > 0:
             db.session.commit()
             flash(f'Se registraron {clases_registradas} clases correctamente', 'success')
         else:
-            flash('No se registró ninguna clase nueva', 'warning')
+            if errores:
+                flash(f'No se registró ninguna clase nueva. Errores: {", ".join(errores[:3])}' + 
+                     (" y más..." if len(errores) > 3 else ""), 'warning')
+            else:
+                flash('No se registró ninguna clase nueva', 'warning')
         
         # Redirigir a la página de clases no registradas para ver el resultado actualizado
         return redirect(url_for('clases_no_registradas'))
