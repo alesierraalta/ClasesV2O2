@@ -801,10 +801,11 @@ def clases_no_registradas():
     fecha_fin_str = request.args.get('fecha_fin')
     profesor_id = request.args.get('profesor_id')
     refresh = request.args.get('refresh')  # Usar para forzar actualización
+    clear_cache = request.args.get('clear_cache')  # Para forzar limpieza de caché
     
     # Mensaje de depuración
     timestamp_actual = int(time_module.time())
-    app.logger.info(f"Ejecutando clases_no_registradas con timestamp: {timestamp_actual}, refresh: {refresh}")
+    print(f"DEBUG: Ejecutando clases_no_registradas con timestamp: {timestamp_actual}, refresh: {refresh}")
     
     # Fecha por defecto: últimos 30 días
     hoy = datetime.now().date()
@@ -845,6 +846,7 @@ def clases_no_registradas():
     for clase in clases_realizadas:
         key = (clase.fecha, clase.horario_id)
         clases_registradas_dict[key] = True
+        print(f"DEBUG: Clase registrada encontrada - Fecha: {clase.fecha}, Horario ID: {clase.horario_id}, ID: {clase.id}")
     
     # 4. Generar las clases esperadas que NO están registradas
     clases_no_registradas = []
@@ -854,7 +856,9 @@ def clases_no_registradas():
             if fecha.weekday() == horario.dia_semana:
                 # Verificar si esta clase ya está registrada
                 key = (fecha, horario.id)
-                if key not in clases_registradas_dict:
+                if key in clases_registradas_dict:
+                    print(f"DEBUG: Clase ya registrada (omitiendo) - Fecha: {fecha}, Horario ID: {horario.id}")
+                else:
                     # Esta clase no está registrada, añadirla a la lista
                     clase_esperada = {
                         'fecha': fecha,
@@ -864,18 +868,22 @@ def clases_no_registradas():
                         'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario.id}"
                     }
                     clases_no_registradas.append(clase_esperada)
+                    print(f"DEBUG: Añadiendo clase no registrada - Fecha: {fecha}, Horario ID: {horario.id}")
     
     # Mensaje de depuración con el número de clases
-    app.logger.info(f"Total de clases registradas: {len(clases_realizadas)}")
-    app.logger.info(f"Total de clases no registradas: {len(clases_no_registradas)}")
+    print(f"DEBUG: Total de clases registradas: {len(clases_realizadas)}")
+    print(f"DEBUG: Total de clases no registradas: {len(clases_no_registradas)}")
     
     # Ordenar por fecha (más reciente primero) y luego por hora de inicio
     clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].hora_inicio), reverse=True)
     
-    print(f"DEBUG: Total clases encontradas - Registradas: {len(clases_realizadas)}, No registradas: {len(clases_no_registradas)}")
-    
     profesores = Profesor.query.all()
     
+    # Verificar inconsistencias en la base de datos
+    if clear_cache == '1':
+        # Forzar una actualización de la caché y sincronizar la base de datos
+        db.session.commit()
+        
     return render_template('asistencia/clases_no_registradas.html',
                            clases_no_registradas=clases_no_registradas,
                            profesores=profesores,
@@ -2510,11 +2518,17 @@ def registrar_asistencia_fecha(fecha, horario_id):
         flash('Formato de fecha inválido', 'danger')
         return redirect(url_for('control_asistencia'))
     
+    print(f"DEBUG: Registrando asistencia para fecha {fecha_obj} y horario {horario_id}")
+    
     horario = HorarioClase.query.get_or_404(horario_id)
+    if not horario:
+        flash(f'No se encontró el horario con ID {horario_id}', 'danger')
+        return redirect(url_for('clases_no_registradas'))
     
     # Verificar si la clase ya está registrada para la fecha específica
     clase_existente = ClaseRealizada.query.filter_by(fecha=fecha_obj, horario_id=horario_id).first()
     if clase_existente:
+        print(f"DEBUG: Ya existe una clase registrada con ID {clase_existente.id} para fecha {fecha_obj} y horario {horario_id}")
         flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
         return redirect(url_for('editar_asistencia', id=clase_existente.id))
     
@@ -2552,9 +2566,20 @@ def registrar_asistencia_fecha(fecha, horario_id):
         )
         
         try:
+            # Verificar nuevamente si existe un registro para evitar duplicados
+            verificar_existente = ClaseRealizada.query.filter_by(fecha=fecha_obj, horario_id=horario_id).first()
+            if verificar_existente:
+                print(f"DEBUG: Se detectó un registro existente durante la creación - ID: {verificar_existente.id}")
+                flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
+                return redirect(url_for('editar_asistencia', id=verificar_existente.id))
+            
             db.session.add(nueva_clase)
             db.session.commit()
-            db.session.flush()  # Asegurarse de que los cambios se guarden
+            db.session.flush()
+            
+            # Forzar una actualización de la caché después de registrar la clase
+            db.session.refresh(nueva_clase)
+            
             print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase.id}, Fecha: {fecha_obj}, Horario: {horario_id}")
             
             flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
@@ -2564,13 +2589,14 @@ def registrar_asistencia_fecha(fecha, horario_id):
             if fecha_obj == hoy:
                 return redirect(url_for('control_asistencia'))
             else:
-                # Añadir timestamp para forzar actualización completa
+                # Añadir timestamp y clear_cache para forzar actualización completa
                 timestamp = int(time_module.time())
-                return redirect(url_for('clases_no_registradas', refresh=timestamp))
+                return redirect(url_for('clases_no_registradas', refresh=timestamp, clear_cache=1))
         except Exception as e:
             db.session.rollback()
             print(f"ERROR: No se pudo registrar la clase - {str(e)}")
             flash(f'Error al registrar la clase: {str(e)}', 'danger')
+            return redirect(url_for('clases_no_registradas'))
     
     return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
 
@@ -2977,3 +3003,59 @@ def generate_favicon_ico():
     except Exception as e:
         app.logger.error(f"Error generando favicon.ico: {str(e)}")
         return f"Error generando favicon.ico: {str(e)}", 500
+
+@app.route('/asistencia/depurar-base-datos')
+def depurar_base_datos():
+    """
+    Ruta para depurar y limpiar posibles inconsistencias en la base de datos
+    relacionadas con clases registradas
+    """
+    try:
+        # 1. Obtener todas las clases realizadas
+        clases_realizadas = ClaseRealizada.query.all()
+        total_clases = len(clases_realizadas)
+        
+        # 2. Verificar integridad referencial
+        clases_sin_horario = []
+        clases_sin_profesor = []
+        
+        for clase in clases_realizadas:
+            # Verificar si el horario existe
+            if not clase.horario_id or not HorarioClase.query.get(clase.horario_id):
+                clases_sin_horario.append(clase)
+            
+            # Verificar si el profesor existe
+            if not clase.profesor_id or not Profesor.query.get(clase.profesor_id):
+                clases_sin_profesor.append(clase)
+        
+        # 3. Buscar duplicados (misma fecha y horario)
+        clases_por_fecha_horario = {}
+        duplicados = []
+        
+        for clase in clases_realizadas:
+            key = (clase.fecha, clase.horario_id)
+            if key in clases_por_fecha_horario:
+                duplicados.append((key, clase.id, clases_por_fecha_horario[key]))
+                print(f"DEBUG: Encontrado duplicado - Fecha: {clase.fecha}, Horario: {clase.horario_id}, IDs: {clase.id} y {clases_por_fecha_horario[key]}")
+            else:
+                clases_por_fecha_horario[key] = clase.id
+        
+        # 4. Preparar resumen para mostrar
+        resumen = {
+            'total_clases': total_clases,
+            'clases_sin_horario': len(clases_sin_horario),
+            'clases_sin_profesor': len(clases_sin_profesor),
+            'duplicados': len(duplicados),
+            'clases_con_problemas': clases_sin_horario + clases_sin_profesor + [d[1] for d in duplicados]
+        }
+        
+        # 5. Forzar actualización de la caché y sincronización de la base de datos
+        db.session.commit()
+        
+        flash(f'Base de datos analizada. Se encontraron {resumen["total_clases"]} clases en total, {resumen["clases_sin_horario"]} sin horario, {resumen["clases_sin_profesor"]} sin profesor y {resumen["duplicados"]} duplicadas.', 'info')
+        
+        return redirect(url_for('clases_no_registradas', clear_cache=1))
+    
+    except Exception as e:
+        flash(f'Error al depurar la base de datos: {str(e)}', 'danger')
+        return redirect(url_for('control_asistencia'))
