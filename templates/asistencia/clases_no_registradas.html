@@ -101,9 +101,27 @@
                 </div>
                 
                 <div class="mt-3">
-                    <button type="submit" class="btn btn-success" id="btn-registrar-seleccionadas">
-                        <i class="fas fa-check-double me-1"></i> Registrar Clases Seleccionadas
-                    </button>
+                    <div class="row align-items-center mb-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="profesor_id_alternativo" class="form-label">Profesor alternativo para todas las clases (opcional)</label>
+                                <select class="form-select" id="profesor_id_alternativo" name="profesor_id_alternativo">
+                                    <option value="">Usar profesor asignado a cada clase</option>
+                                    {% for profesor in profesores %}
+                                    <option value="{{ profesor.id }}">
+                                        {{ profesor.nombre }} {{ profesor.apellido }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Si selecciona un profesor aquí, todas las clases se registrarán con este profesor, independientemente del profesor originalmente asignado.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="submit" class="btn btn-success" id="btn-registrar-seleccionadas">
+                                <i class="fas fa-check-double me-1"></i> Registrar Clases Seleccionadas
+                            </button>
+                        </div>
+                    </div>
                     <p class="small text-muted mt-2">
                         <i class="fas fa-info-circle me-1"></i> Las clases seleccionadas se registrarán con 0 alumnos. Podrá editar los detalles después.
                     </p>

@@ -72,10 +72,23 @@
                         <div id="seccion_normal" class="mb-4 estado-seccion">
                             <div class="row">
                                 <div class="col-md-6">
+                                    <label for="profesor_id" class="form-label">Profesor que impartió la clase *</label>
+                                    <select class="form-select" id="profesor_id" name="profesor_id" required>
+                                        {% for profesor in profesores %}
+                                            <option value="{{ profesor.id }}" {% if profesor.id == horario.profesor_id %}selected{% endif %}>
+                                                {{ profesor.nombre }} {{ profesor.apellido }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Seleccione el profesor que realmente impartió esta clase.</div>
+                                </div>
+                                <div class="col-md-6">
                                     <label for="hora_llegada" class="form-label">Hora de llegada del profesor</label>
                                     <input type="time" class="form-control" id="hora_llegada" name="hora_llegada">
                                     <div class="form-text">Dejar en blanco si no se registró la hora exacta.</div>
                                 </div>
+                            </div>
+                            <div class="row mt-3">
                                 <div class="col-md-6">
                                     <label for="cantidad_alumnos" class="form-label">Cantidad de alumnos *</label>
                                     <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" min="0" max="{{ horario.capacidad_maxima }}" required>

@@ -4,6 +4,7 @@ import traceback
 import re  # para expresiones regulares
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 from datetime import datetime, timedelta, date, time
 from werkzeug.utils import secure_filename
 import calendar
@@ -97,7 +98,7 @@ def divmod_filter(value, arg):
 
 # Filtro para obtener el timestamp actual
 @app.template_filter('now')
-def now_filter():
+def now_filter(value=None):
     return datetime.now()
 
 # Inicializar la base de datos
@@ -666,6 +667,13 @@ def registrar_asistencia(horario_id):
         cantidad_alumnos = request.form.get('cantidad_alumnos', 0)
         observaciones = request.form.get('observaciones', '')
         
+        # Obtener el profesor_id del formulario o usar el del horario por defecto
+        profesor_id = request.form.get('profesor_id')
+        if not profesor_id:
+            profesor_id = horario.profesor_id
+        else:
+            profesor_id = int(profesor_id)
+        
         try:
             # Convertir la hora de llegada a un objeto time
             if hora_llegada:
@@ -678,7 +686,7 @@ def registrar_asistencia(horario_id):
             nueva_clase = ClaseRealizada(
                 fecha=hoy,
                 horario_id=horario_id,
-                profesor_id=horario.profesor_id,
+                profesor_id=profesor_id,
                 hora_llegada_profesor=hora_llegada_time,
                 cantidad_alumnos=cantidad_alumnos,
                 observaciones=observaciones
@@ -717,7 +725,10 @@ def registrar_asistencia(horario_id):
             db.session.rollback()
             flash(f'Error al guardar el registro: {str(e)}', 'error')
     
-    return render_template('asistencia/registrar.html', horario=horario, hoy=hoy)
+    # Obtener todos los profesores para el selector
+    profesores = Profesor.query.all()
+    
+    return render_template('asistencia/registrar.html', horario=horario, hoy=hoy, profesores=profesores)
 
 @app.route('/asistencia/editar/<int:id>', methods=['GET', 'POST'])
 def editar_asistencia(id):
@@ -727,6 +738,10 @@ def editar_asistencia(id):
         hora_llegada = None
         if request.form['hora_llegada']:
             hora_llegada = datetime.strptime(request.form['hora_llegada'], '%H:%M').time()
+        
+        # Actualizar el profesor si se cambió
+        if 'profesor_id' in request.form and request.form['profesor_id']:
+            clase_realizada.profesor_id = int(request.form['profesor_id'])
         
         clase_realizada.hora_llegada_profesor = hora_llegada
         clase_realizada.cantidad_alumnos = int(request.form['cantidad_alumnos'])
@@ -742,7 +757,13 @@ def editar_asistencia(id):
         else:
             return redirect(url_for('historial_asistencia'))
     
-    return render_template('asistencia/editar.html', clase=clase_realizada)
+    # Obtener todos los profesores para el selector
+    profesores = Profesor.query.all()
+    
+    # Obtener la fecha actual para compararla en la plantilla
+    hoy = datetime.now().date()
+    
+    return render_template('asistencia/editar.html', clase=clase_realizada, profesores=profesores, hoy=hoy)
 
 @app.route('/asistencia/eliminar/<int:id>')
 def eliminar_asistencia(id):
@@ -805,7 +826,16 @@ def clases_no_registradas():
     
     # Mensaje de depuración
     timestamp_actual = int(time_module.time())
-    print(f"DEBUG: Ejecutando clases_no_registradas con timestamp: {timestamp_actual}, refresh: {refresh}")
+    print(f"DEBUG: Ejecutando clases_no_registradas con timestamp: {timestamp_actual}, refresh: {refresh}, clear_cache: {clear_cache}")
+    
+    # Si se solicita limpiar la caché, forzar una actualización de la sesión
+    if clear_cache == '1':
+        print("DEBUG: Limpiando caché de la sesión")
+        # Forzar sincronización de la base de datos
+        db.session.commit()
+        # Cerrar y reabrir la sesión
+        db.session.close()
+        db.session = db.create_scoped_session()
     
     # Fecha por defecto: últimos 30 días
     hoy = datetime.now().date()
@@ -836,17 +866,30 @@ def clases_no_registradas():
     # Formato: {(fecha, horario_id): True}
     clases_registradas_dict = {}
     
-    # Obtener todas las clases registradas en el período
-    clases_realizadas = ClaseRealizada.query.filter(
-        ClaseRealizada.fecha >= fecha_inicio,
-        ClaseRealizada.fecha <= fecha_fin
-    ).all()
+    # Obtener todas las clases registradas en el período - FORZAR REFRESCO
+    sql = """
+    SELECT id, fecha, horario_id, profesor_id 
+    FROM clase_realizada 
+    WHERE fecha >= :fecha_inicio AND fecha <= :fecha_fin
+    """
+    result = db.session.execute(sql, {
+        'fecha_inicio': fecha_inicio, 
+        'fecha_fin': fecha_fin
+    })
     
-    # Guardar las clases realizadas en el diccionario para búsqueda rápida
-    for clase in clases_realizadas:
-        key = (clase.fecha, clase.horario_id)
+    # Procesar los resultados de la consulta directa
+    clases_realizadas = []
+    for row in result:
+        clases_realizadas.append({
+            'id': row[0],
+            'fecha': row[1],
+            'horario_id': row[2],
+            'profesor_id': row[3]
+        })
+        # Agregar al diccionario para búsqueda rápida
+        key = (row[1], row[2])  # fecha, horario_id
         clases_registradas_dict[key] = True
-        print(f"DEBUG: Clase registrada encontrada - Fecha: {clase.fecha}, Horario ID: {clase.horario_id}, ID: {clase.id}")
+        print(f"DEBUG: Clase registrada encontrada - Fecha: {row[1]}, Horario ID: {row[2]}, ID: {row[0]}")
     
     # 4. Generar las clases esperadas que NO están registradas
     clases_no_registradas = []
@@ -879,11 +922,6 @@ def clases_no_registradas():
     
     profesores = Profesor.query.all()
     
-    # Verificar inconsistencias en la base de datos
-    if clear_cache == '1':
-        # Forzar una actualización de la caché y sincronizar la base de datos
-        db.session.commit()
-        
     return render_template('asistencia/clases_no_registradas.html',
                            clases_no_registradas=clases_no_registradas,
                            profesores=profesores,
@@ -906,54 +944,235 @@ def informe_mensual():
         primer_dia = date(anio, mes, 1)
         ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
         
-        # Consultar clases realizadas en el rango de fechas
-        clases_realizadas = ClaseRealizada.query.filter(
-            ClaseRealizada.fecha >= primer_dia,
-            ClaseRealizada.fecha <= ultimo_dia
-        ).order_by(ClaseRealizada.fecha).all()
+        # Limpiar caché de la sesión
+        db.session.commit()
+        db.session.close()
+        db.session = db.create_scoped_session()
         
-        # Identificar clases programadas pero no registradas
-        # 1. Obtener todos los horarios activos
-        horarios_activos = HorarioClase.query.all()
+        # Consultar clases realizadas en el rango de fechas usando SQL directo
+        sql_clases = """
+        SELECT cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
+               cr.cantidad_alumnos, cr.observaciones, cr.audio_file, 
+               hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
+               p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
+        FROM clase_realizada cr
+        JOIN horario_clase hc ON cr.horario_id = hc.id
+        JOIN profesor p ON cr.profesor_id = p.id
+        WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
+        ORDER BY cr.fecha, hc.hora_inicio
+        """
         
-        # 2. Generar fechas para el mes seleccionado
+        result_clases = db.session.execute(sql_clases, {
+            'fecha_inicio': primer_dia,
+            'fecha_fin': ultimo_dia
+        })
+        
+        # Función para calcular la hora de finalización como string
+        def calcular_hora_fin(hora_inicio, duracion=60):
+            if not hora_inicio:
+                return "00:00"
+            
+            if isinstance(hora_inicio, str):
+                try:
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+                except ValueError:
+                    try:
+                        hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+                    except ValueError:
+                        return "00:00"
+            
+            minutos_totales = hora_inicio.hour * 60 + hora_inicio.minute + duracion
+            horas, minutos = divmod(minutos_totales, 60)
+            return f"{horas:02d}:{minutos:02d}"
+        
+        # Función para calcular la puntualidad
+        def calcular_puntualidad(hora_llegada, hora_inicio):
+            if not hora_llegada:
+                return "N/A"
+            
+            if hora_llegada <= hora_inicio:
+                return "Puntual"
+            
+            diferencia_minutos = (
+                datetime.combine(date.min, hora_llegada) - 
+                datetime.combine(date.min, hora_inicio)
+            ).total_seconds() / 60
+            
+            if diferencia_minutos <= 10:
+                return "Retraso leve"
+            else:
+                return "Retraso significativo"
+        
+        # Procesar los resultados y crear objetos para facilitar el manejo
+        clases_realizadas = []
+        for row in result_clases:
+            # Asegurarse de que fecha sea un objeto datetime.date
+            fecha = row.fecha
+            if isinstance(fecha, str):
+                try:
+                    fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
+                except ValueError:
+                    try:
+                        fecha = datetime.strptime(fecha, '%d/%m/%Y').date()
+                    except ValueError:
+                        fecha = datetime.now().date()
+
+            # Asegurarse de que hora_llegada_profesor sea un objeto time
+            hora_llegada = row.hora_llegada_profesor
+            if hora_llegada and isinstance(hora_llegada, str):
+                try:
+                    hora_llegada = datetime.strptime(hora_llegada, '%H:%M:%S').time()
+                except ValueError:
+                    try:
+                        hora_llegada = datetime.strptime(hora_llegada, '%H:%M').time()
+                    except ValueError:
+                        hora_llegada = None
+
+            # Asegurarse de que hora_inicio sea un objeto time
+            hora_inicio = row.hora_inicio
+            if isinstance(hora_inicio, str):
+                try:
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+                except ValueError:
+                    try:
+                        hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+                    except ValueError:
+                        hora_inicio = datetime.now().time()
+            
+            # Obtener la duración o usar valor por defecto
+            duracion = getattr(row, 'duracion', 60)
+            
+            # Calcular la hora de finalización como string
+            hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
+            
+            # Calcular puntualidad
+            estado_puntualidad = calcular_puntualidad(hora_llegada, hora_inicio)
+            
+            # Crear un objeto para representar la clase realizada
+            clase = {
+                'id': row.id,
+                'fecha': fecha,
+                'horario_id': row.horario_id,
+                'profesor_id': row.profesor_id,
+                'hora_llegada_profesor': hora_llegada,
+                'cantidad_alumnos': row.cantidad_alumnos,
+                'observaciones': row.observaciones,
+                'audio_file': row.audio_file,
+                'horario': {
+                    'id': row.horario_id,
+                    'nombre': row.nombre,
+                    'hora_inicio': hora_inicio,
+                    'tipo_clase': row.tipo_clase,
+                    'duracion': duracion,
+                    'hora_fin_str': hora_fin_str
+                },
+                'profesor': {
+                    'id': row.profesor_id,
+                    'nombre': row.profesor_nombre,
+                    'apellido': row.profesor_apellido,
+                    'tarifa_por_clase': row.tarifa_por_clase
+                },
+                'puntualidad': estado_puntualidad
+            }
+            clases_realizadas.append(clase)
+        
+        # Obtener todos los horarios activos
+        sql_horarios = "SELECT id, nombre, hora_inicio, tipo_clase, dia_semana, profesor_id, duracion FROM horario_clase"
+        result_horarios = db.session.execute(sql_horarios)
+        
+        horarios_activos = []
+        for row in result_horarios:
+            # Asegurarse de que hora_inicio sea un objeto time
+            hora_inicio = row.hora_inicio
+            if isinstance(hora_inicio, str):
+                try:
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+                except ValueError:
+                    try:
+                        hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+                    except ValueError:
+                        hora_inicio = datetime.now().time()
+                        
+            # Obtener la duración o usar valor por defecto
+            duracion = getattr(row, 'duracion', 60)
+            
+            # Calcular la hora de finalización como string
+            hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
+            
+            horario = {
+                'id': row.id,
+                'nombre': row.nombre,
+                'hora_inicio': hora_inicio,
+                'tipo_clase': row.tipo_clase,
+                'dia_semana': row.dia_semana,
+                'profesor_id': row.profesor_id,
+                'duracion': duracion,
+                'hora_fin_str': hora_fin_str
+            }
+            horarios_activos.append(horario)
+        
+        # Generar fechas para el mes seleccionado
         fechas_mes = []
         fecha_actual = primer_dia
         while fecha_actual <= ultimo_dia:
             fechas_mes.append(fecha_actual)
             fecha_actual += timedelta(days=1)
         
-        # 3. Generar las clases que deberían haberse realizado
-        clases_esperadas = []
+        # Crear un diccionario para verificar clases ya registradas
+        # Formato: {(fecha, horario_id): True}
+        clases_registradas_dict = {}
+        for clase in clases_realizadas:
+            key = (clase['fecha'], clase['horario_id'])
+            clases_registradas_dict[key] = True
+        
+        # Generar las clases que deberían haberse realizado pero no están registradas
+        clases_no_registradas = []
         for horario in horarios_activos:
             for fecha in fechas_mes:
                 # Si el día de la semana coincide con el día del horario
-                if fecha.weekday() == horario.dia_semana:
-                    # Creamos un objeto para representar la clase esperada
-                    clase_esperada = {
-                        'fecha': fecha,
-                        'horario': horario,
-                        'profesor': horario.profesor,
-                        'tipo_clase': horario.tipo_clase
-                    }
-                    clases_esperadas.append(clase_esperada)
-        
-        # 4. Identificar clases no registradas comparando con las realizadas
-        clases_no_registradas = []
-        for clase_esperada in clases_esperadas:
-            # Verificar si esta clase esperada tiene un registro en clases_realizadas
-            encontrada = False
-            for clase_realizada in clases_realizadas:
-                if (clase_realizada.fecha == clase_esperada['fecha'] and
-                        clase_realizada.horario_id == clase_esperada['horario'].id):
-                    encontrada = True
-                    break
-            
-            if not encontrada:
-                clases_no_registradas.append(clase_esperada)
+                if fecha.weekday() == horario['dia_semana']:
+                    key = (fecha, horario['id'])
+                    # Verificar si esta clase no está registrada
+                    if key not in clases_registradas_dict:
+                        # Obtener información del profesor
+                        sql_profesor = "SELECT id, nombre, apellido FROM profesor WHERE id = :profesor_id"
+                        result_profesor = db.session.execute(sql_profesor, {'profesor_id': horario['profesor_id']}).fetchone()
+                        
+                        if result_profesor:
+                            profesor = {
+                                'id': result_profesor.id,
+                                'nombre': result_profesor.nombre,
+                                'apellido': result_profesor.apellido
+                            }
+                        else:
+                            profesor = {
+                                'id': 0,
+                                'nombre': 'Desconocido',
+                                'apellido': ''
+                            }
+                        
+                        # Asegurarse de que fecha sea un objeto datetime.date
+                        if not isinstance(fecha, date):
+                            try:
+                                fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
+                            except (ValueError, TypeError):
+                                try:
+                                    fecha = datetime.strptime(fecha, '%d/%m/%Y').date()
+                                except (ValueError, TypeError):
+                                    fecha = datetime.now().date()
+                        
+                        # Creamos un objeto para representar la clase esperada
+                        clase_esperada = {
+                            'fecha': fecha,
+                            'horario': horario,
+                            'profesor': profesor,
+                            'tipo_clase': horario['tipo_clase'],
+                            'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario['id']}"
+                        }
+                        clases_no_registradas.append(clase_esperada)
         
         # Ordenar las clases no registradas por fecha
-        clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].hora_inicio))
+        clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario']['hora_inicio']))
         
         # Inicializar variables para totales
         total_clases = {'value': 0}
@@ -979,15 +1198,15 @@ def informe_mensual():
         }
         
         for clase in clases_realizadas:
-            profesor = clase.profesor
-            tipo_clase = clase.horario.tipo_clase
+            profesor = clase['profesor']
+            tipo_clase = clase['horario']['tipo_clase']
             
             # Incrementar contadores por tipo
             conteo_tipos[tipo_clase] += 1
-            alumnos_tipos[tipo_clase] += clase.cantidad_alumnos
+            alumnos_tipos[tipo_clase] += clase['cantidad_alumnos']
             
-            if profesor.id not in resumen_profesores:
-                resumen_profesores[profesor.id] = {
+            if profesor['id'] not in resumen_profesores:
+                resumen_profesores[profesor['id']] = {
                     'profesor': profesor,
                     'total_clases': 0,
                     'total_alumnos': 0,
@@ -1006,22 +1225,22 @@ def informe_mensual():
                         'OTRO': 0
                     }
                 }
-            resumen_profesores[profesor.id]['total_clases'] += 1
-            resumen_profesores[profesor.id]['total_alumnos'] += clase.cantidad_alumnos
-            resumen_profesores[profesor.id]['clases_por_tipo'][tipo_clase] += 1
-            resumen_profesores[profesor.id]['alumnos_por_tipo'][tipo_clase] += clase.cantidad_alumnos
+            resumen_profesores[profesor['id']]['total_clases'] += 1
+            resumen_profesores[profesor['id']]['total_alumnos'] += clase['cantidad_alumnos']
+            resumen_profesores[profesor['id']]['clases_por_tipo'][tipo_clase] += 1
+            resumen_profesores[profesor['id']]['alumnos_por_tipo'][tipo_clase] += clase['cantidad_alumnos']
             
-            if clase.hora_llegada_profesor and clase.hora_llegada_profesor > clase.horario.hora_inicio:
-                resumen_profesores[profesor.id]['total_retrasos'] += 1
+            if clase['hora_llegada_profesor'] and clase['hora_llegada_profesor'] > clase['horario']['hora_inicio']:
+                resumen_profesores[profesor['id']]['total_retrasos'] += 1
             
             # Si el profesor asistió (tiene hora de llegada) pero no hay alumnos, se paga la mitad
-            pago_clase = profesor.tarifa_por_clase / 2 if (clase.hora_llegada_profesor and clase.cantidad_alumnos == 0) else profesor.tarifa_por_clase
+            pago_clase = profesor['tarifa_por_clase'] / 2 if (clase['hora_llegada_profesor'] and clase['cantidad_alumnos'] == 0) else profesor['tarifa_por_clase']
             
             # Almacenar el pago individual por clase
-            clase.pago_calculado = pago_clase
+            clase['pago_calculado'] = pago_clase
             
             # Añadir al total del profesor
-            resumen_profesores[profesor.id]['pago_total'] += pago_clase
+            resumen_profesores[profesor['id']]['pago_total'] += pago_clase
         
         # Calcular totales globales si hay datos
         if resumen_profesores:
@@ -2525,18 +2744,22 @@ def registrar_asistencia_fecha(fecha, horario_id):
         flash(f'No se encontró el horario con ID {horario_id}', 'danger')
         return redirect(url_for('clases_no_registradas'))
     
-    # Verificar si la clase ya está registrada para la fecha específica
-    clase_existente = ClaseRealizada.query.filter_by(fecha=fecha_obj, horario_id=horario_id).first()
-    if clase_existente:
-        print(f"DEBUG: Ya existe una clase registrada con ID {clase_existente.id} para fecha {fecha_obj} y horario {horario_id}")
+    # Verificar si la clase ya está registrada para la fecha específica - USAR SQL DIRECTO
+    sql = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+    result = db.session.execute(sql, {'fecha': fecha_obj, 'horario_id': horario_id}).fetchone()
+    
+    if result:
+        clase_existente_id = result[0]
+        print(f"DEBUG: Ya existe una clase registrada con ID {clase_existente_id} para fecha {fecha_obj} y horario {horario_id}")
         flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
-        return redirect(url_for('editar_asistencia', id=clase_existente.id))
+        return redirect(url_for('editar_asistencia', id=clase_existente_id))
     
     # Verificar si la clase ya está registrada para la fecha actual (para evitar confusiones)
     hoy = datetime.now().date()
     if fecha_obj != hoy:  # Solo realizar esta comprobación si la fecha no es hoy
-        clase_hoy = ClaseRealizada.query.filter_by(fecha=hoy, horario_id=horario_id).first()
-        if clase_hoy:
+        sql = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+        result = db.session.execute(sql, {'fecha': hoy, 'horario_id': horario_id}).fetchone()
+        if result:
             flash(f'Atención: Ya existe un registro para la clase {horario.nombre} en la fecha actual ({hoy.strftime("%d/%m/%Y")})', 'info')
     
     # Procesar el formulario si es POST
@@ -2545,21 +2768,29 @@ def registrar_asistencia_fecha(fecha, horario_id):
         cantidad_alumnos = request.form.get('cantidad_alumnos', type=int)
         observaciones = request.form.get('observaciones')
         
+        # Obtener el profesor seleccionado o usar el del horario por defecto
+        profesor_id = request.form.get('profesor_id')
+        if not profesor_id:
+            profesor_id = horario.profesor_id
+        else:
+            profesor_id = int(profesor_id)
+        
         # Convertir hora de llegada a objeto Time
         if hora_llegada_str:
             try:
                 hora_llegada = datetime.strptime(hora_llegada_str, '%H:%M').time()
             except ValueError:
                 flash('Formato de hora inválido. Use HH:MM', 'danger')
-                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
+                profesores = Profesor.query.all()
+                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj, profesores=profesores)
         else:
             hora_llegada = None
         
         # Crear y guardar la nueva clase
         nueva_clase = ClaseRealizada(
-            fecha=fecha_obj,
+            fecha=fecha_obj,  # Asegurarse de usar la fecha original, no la actual
             horario_id=horario.id,
-            profesor_id=horario.profesor_id,
+            profesor_id=profesor_id,
             hora_llegada_profesor=hora_llegada,
             cantidad_alumnos=cantidad_alumnos,
             observaciones=observaciones
@@ -2567,22 +2798,49 @@ def registrar_asistencia_fecha(fecha, horario_id):
         
         try:
             # Verificar nuevamente si existe un registro para evitar duplicados
-            verificar_existente = ClaseRealizada.query.filter_by(fecha=fecha_obj, horario_id=horario_id).first()
-            if verificar_existente:
-                print(f"DEBUG: Se detectó un registro existente durante la creación - ID: {verificar_existente.id}")
+            sql = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+            result = db.session.execute(sql, {'fecha': fecha_obj, 'horario_id': horario_id}).fetchone()
+            
+            if result:
+                clase_existente_id = result[0]
+                print(f"DEBUG: Se detectó un registro existente durante la creación - ID: {clase_existente_id}")
                 flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
-                return redirect(url_for('editar_asistencia', id=verificar_existente.id))
+                return redirect(url_for('editar_asistencia', id=clase_existente_id))
             
-            db.session.add(nueva_clase)
+            # Ejecutar SQL directo para garantizar la inserción
+            sql = """
+            INSERT INTO clase_realizada 
+            (fecha, horario_id, profesor_id, hora_llegada_profesor, cantidad_alumnos, observaciones, fecha_registro) 
+            VALUES (:fecha, :horario_id, :profesor_id, :hora_llegada, :cantidad_alumnos, :observaciones, :fecha_registro)
+            """
+            
+            db.session.execute(sql, {
+                'fecha': fecha_obj,
+                'horario_id': horario.id,
+                'profesor_id': profesor_id,
+                'hora_llegada': hora_llegada,
+                'cantidad_alumnos': cantidad_alumnos,
+                'observaciones': observaciones,
+                'fecha_registro': datetime.utcnow()
+            })
+            
             db.session.commit()
-            db.session.flush()
             
-            # Forzar una actualización de la caché después de registrar la clase
-            db.session.refresh(nueva_clase)
+            # Obtener el ID de la clase recién insertada
+            result = db.session.execute(
+                "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id ORDER BY id DESC LIMIT 1", 
+                {'fecha': fecha_obj, 'horario_id': horario.id}
+            ).fetchone()
             
-            print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase.id}, Fecha: {fecha_obj}, Horario: {horario_id}")
+            nueva_clase_id = result[0] if result else 'desconocido'
+            
+            print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase_id}, Fecha: {fecha_obj}, Horario: {horario_id}")
             
             flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
+            
+            # Cerrar y reabrir la sesión para limpiar la caché
+            db.session.close()
+            db.session = db.create_scoped_session()
             
             # Si la fecha es hoy, redirigir al control de asistencia
             # Si es una fecha anterior, redirigir al historial de clases no registradas
@@ -2598,8 +2856,10 @@ def registrar_asistencia_fecha(fecha, horario_id):
             flash(f'Error al registrar la clase: {str(e)}', 'danger')
             return redirect(url_for('clases_no_registradas'))
     
-    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj)
-
+    # Obtener todos los profesores para el selector
+    profesores = Profesor.query.all()
+    
+    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj, profesores=profesores)
 
 @app.route('/asistencia/registrar-clases-masivo', methods=['POST'])
 @app.route('/registrar-clases-no-registradas', methods=['POST'])  # Alias para mantener compatibilidad
@@ -2612,6 +2872,18 @@ def registrar_clases_no_registradas():
             flash('No seleccionó ninguna clase para registrar', 'warning')
             return redirect(url_for('clases_no_registradas'))
         
+        # Verificar si se especificó un profesor alternativo para todas las clases
+        profesor_id_alternativo = request.form.get('profesor_id_alternativo')
+        if profesor_id_alternativo:
+            try:
+                profesor_id_alternativo = int(profesor_id_alternativo)
+                # Verificar que el profesor existe
+                profesor = Profesor.query.get(profesor_id_alternativo)
+                if not profesor:
+                    profesor_id_alternativo = None
+            except (ValueError, TypeError):
+                profesor_id_alternativo = None
+        
         clases_registradas = 0
         clases_procesadas = []
         
@@ -2623,63 +2895,90 @@ def registrar_clases_no_registradas():
                 horario_id = int(partes[1])
                 
                 fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
-                horario = HorarioClase.query.get(horario_id)
                 
-                if not horario:
+                # Obtener información del horario usando SQL directo
+                sql_horario = "SELECT id, profesor_id, hora_inicio FROM horario_clase WHERE id = :horario_id"
+                result_horario = db.session.execute(sql_horario, {'horario_id': horario_id}).fetchone()
+                
+                if not result_horario:
                     print(f"DEBUG: Horario no encontrado - ID: {horario_id}")
                     continue
                 
-                # Verificar si ya existe un registro para esta clase
-                clase_existente = ClaseRealizada.query.filter_by(
-                    fecha=fecha_obj, 
-                    horario_id=horario_id
-                ).first()
+                horario_id = result_horario[0]
+                # Usar el profesor alternativo si se especificó, de lo contrario usar el del horario
+                profesor_id = profesor_id_alternativo if profesor_id_alternativo else result_horario[1]
+                hora_inicio = result_horario[2]
                 
-                if clase_existente:
+                # Verificar si ya existe un registro para esta clase usando SQL directo
+                sql_verificar = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+                result_verificar = db.session.execute(sql_verificar, {'fecha': fecha_obj, 'horario_id': horario_id}).fetchone()
+                
+                if result_verificar:
                     print(f"DEBUG: Clase ya existe - Fecha: {fecha_obj}, Horario: {horario_id}")
                     continue
                 
-                # Crear un nuevo registro con 0 alumnos
-                nueva_clase = ClaseRealizada(
-                    fecha=fecha_obj,
-                    horario_id=horario_id,
-                    profesor_id=horario.profesor_id,
-                    hora_llegada_profesor=horario.hora_inicio,  # Por defecto, la hora programada
-                    cantidad_alumnos=0,
-                    observaciones="Registrada automáticamente"
-                )
+                # Crear un nuevo registro con SQL directo
+                sql_insertar = """
+                INSERT INTO clase_realizada 
+                (fecha, horario_id, profesor_id, hora_llegada_profesor, cantidad_alumnos, observaciones, fecha_registro) 
+                VALUES (:fecha, :horario_id, :profesor_id, :hora_llegada, :cantidad_alumnos, :observaciones, :fecha_registro)
+                """
                 
-                db.session.add(nueva_clase)
-                db.session.flush()  # Para obtener el ID asignado
+                db.session.execute(sql_insertar, {
+                    'fecha': fecha_obj,
+                    'horario_id': horario_id,
+                    'profesor_id': profesor_id,
+                    'hora_llegada': hora_inicio,
+                    'cantidad_alumnos': 0,
+                    'observaciones': "Registrada automáticamente",
+                    'fecha_registro': datetime.utcnow()
+                })
+                
+                db.session.commit()
+                
+                # Obtener el ID de la clase recién insertada
+                sql_obtener_id = """
+                SELECT id FROM clase_realizada 
+                WHERE fecha = :fecha AND horario_id = :horario_id 
+                ORDER BY id DESC LIMIT 1
+                """
+                result_id = db.session.execute(sql_obtener_id, {'fecha': fecha_obj, 'horario_id': horario_id}).fetchone()
+                
+                nueva_clase_id = result_id[0] if result_id else 'desconocido'
                 
                 clases_registradas += 1
                 clases_procesadas.append({
                     'fecha': fecha_obj,
                     'horario_id': horario_id,
-                    'id': nueva_clase.id
+                    'id': nueva_clase_id
                 })
+                
+                print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase_id}, Fecha: {fecha_obj}, Horario: {horario_id}")
                 
             except Exception as e:
                 # Registrar el error pero continuar con las otras clases
+                db.session.rollback()
                 app.logger.error(f"Error al registrar clase {clase_id}: {str(e)}")
                 print(f"ERROR: No se pudo registrar la clase {clase_id} - {str(e)}")
                 continue
         
         if clases_registradas > 0:
             try:
-                db.session.commit()
+                # Forzar un cierre y reapertura de la sesión para limpiar la caché
+                db.session.close()
+                db.session = db.create_scoped_session()
+                
                 print(f"DEBUG: Se registraron {clases_registradas} clases correctamente: {clases_procesadas}")
                 flash(f'Se registraron {clases_registradas} clases correctamente', 'success')
             except Exception as e:
-                db.session.rollback()
-                print(f"ERROR: Error al guardar en la base de datos - {str(e)}")
-                flash(f'Error al guardar los cambios: {str(e)}', 'danger')
+                print(f"ERROR: Error al limpiar la caché - {str(e)}")
+                flash(f'Se registraron clases pero hubo un error al actualizar la vista: {str(e)}', 'warning')
         else:
             flash('No se registró ninguna clase nueva', 'warning')
         
-        # Añadir timestamp para forzar actualización completa
+        # Añadir timestamp y clear_cache para forzar actualización completa
         timestamp = int(time_module.time())
-        return redirect(url_for('clases_no_registradas', refresh=timestamp))
+        return redirect(url_for('clases_no_registradas', refresh=timestamp, clear_cache=1))
 
 # Add initialization code to ensure the application starts correctly
 if __name__ == '__main__':
@@ -3005,57 +3304,197 @@ def generate_favicon_ico():
         return f"Error generando favicon.ico: {str(e)}", 500
 
 @app.route('/asistencia/depurar-base-datos')
-def depurar_base_datos():
+def depurar_asistencia_base_datos():
     """
-    Ruta para depurar y limpiar posibles inconsistencias en la base de datos
-    relacionadas con clases registradas
+    Función para depurar problemas con clases no registradas.
+    Esta función identificará y eliminará duplicados en la base de datos.
     """
     try:
-        # 1. Obtener todas las clases realizadas
-        clases_realizadas = ClaseRealizada.query.all()
-        total_clases = len(clases_realizadas)
+        # Verificar si hay clases duplicadas
+        duplicados = db.session.query(
+            ClaseRealizada.fecha,
+            ClaseRealizada.horario_id,
+            func.count().label('total')
+        ).group_by(
+            ClaseRealizada.fecha,
+            ClaseRealizada.horario_id
+        ).having(func.count() > 1).all()
         
-        # 2. Verificar integridad referencial
-        clases_sin_horario = []
-        clases_sin_profesor = []
+        if not duplicados:
+            flash('No se encontraron duplicados en la base de datos', 'success')
+            return redirect(url_for('control_asistencia'))
         
-        for clase in clases_realizadas:
-            # Verificar si el horario existe
-            if not clase.horario_id or not HorarioClase.query.get(clase.horario_id):
-                clases_sin_horario.append(clase)
+        total_duplicados = len(duplicados)
+        flash(f'Se encontraron {total_duplicados} conjuntos de clases duplicadas', 'warning')
+        
+        # Eliminar duplicados
+        clases_eliminadas = 0
+        for duplicado in duplicados:
+            fecha = duplicado.fecha
+            horario_id = duplicado.horario_id
             
-            # Verificar si el profesor existe
-            if not clase.profesor_id or not Profesor.query.get(clase.profesor_id):
-                clases_sin_profesor.append(clase)
-        
-        # 3. Buscar duplicados (misma fecha y horario)
-        clases_por_fecha_horario = {}
-        duplicados = []
-        
-        for clase in clases_realizadas:
-            key = (clase.fecha, clase.horario_id)
-            if key in clases_por_fecha_horario:
-                duplicados.append((key, clase.id, clases_por_fecha_horario[key]))
-                print(f"DEBUG: Encontrado duplicado - Fecha: {clase.fecha}, Horario: {clase.horario_id}, IDs: {clase.id} y {clases_por_fecha_horario[key]}")
-            else:
-                clases_por_fecha_horario[key] = clase.id
-        
-        # 4. Preparar resumen para mostrar
-        resumen = {
-            'total_clases': total_clases,
-            'clases_sin_horario': len(clases_sin_horario),
-            'clases_sin_profesor': len(clases_sin_profesor),
-            'duplicados': len(duplicados),
-            'clases_con_problemas': clases_sin_horario + clases_sin_profesor + [d[1] for d in duplicados]
-        }
-        
-        # 5. Forzar actualización de la caché y sincronización de la base de datos
+            # Obtener todas las clases con esa fecha y horario
+            clases = ClaseRealizada.query.filter_by(
+                fecha=fecha,
+                horario_id=horario_id
+            ).order_by(ClaseRealizada.id).all()
+            
+            # Mantener la primera clase y eliminar las demás
+            for clase in clases[1:]:
+                db.session.delete(clase)
+                clases_eliminadas += 1
+                
         db.session.commit()
+        flash(f'Se eliminaron {clases_eliminadas} clases duplicadas', 'success')
         
-        flash(f'Base de datos analizada. Se encontraron {resumen["total_clases"]} clases en total, {resumen["clases_sin_horario"]} sin horario, {resumen["clases_sin_profesor"]} sin profesor y {resumen["duplicados"]} duplicadas.', 'info')
+        # Forzar un reinicio de la sesión para limpiar la caché
+        db.session.remove()
+        db.session = db.create_scoped_session()
         
-        return redirect(url_for('clases_no_registradas', clear_cache=1))
-    
+        return redirect(url_for('control_asistencia'))
+            
     except Exception as e:
+        db.session.rollback()
         flash(f'Error al depurar la base de datos: {str(e)}', 'danger')
         return redirect(url_for('control_asistencia'))
+
+@app.route('/mantenimiento/depurar-base-datos')
+def depurar_base_datos():
+    """
+    Función para depurar la base de datos y resolver problemas comunes.
+    Esta ruta permite realizar operaciones de limpieza y mantenimiento.
+    """
+    resultados = {
+        'success': True,
+        'mensajes': []
+    }
+    
+    try:
+        # 1. Reiniciar completamente la sesión de base de datos
+        db.session.close()
+        db.session = db.create_scoped_session()
+        resultados['mensajes'].append("Sesión de base de datos reiniciada exitosamente")
+        
+        # 2. Verificar clases duplicadas (misma fecha y horario)
+        sql_duplicados = """
+        SELECT cr1.id, cr1.fecha, cr1.horario_id, cr1.profesor_id
+        FROM clase_realizada cr1
+        JOIN (
+            SELECT fecha, horario_id, COUNT(*) as cnt
+            FROM clase_realizada
+            GROUP BY fecha, horario_id
+            HAVING COUNT(*) > 1
+        ) cr2 ON cr1.fecha = cr2.fecha AND cr1.horario_id = cr2.horario_id
+        ORDER BY cr1.fecha, cr1.horario_id, cr1.id
+        """
+        
+        duplicados = db.session.execute(sql_duplicados).fetchall()
+        
+        if duplicados:
+            resultados['mensajes'].append(f"Se encontraron {len(duplicados)} clases duplicadas")
+            
+            # Agrupar por fecha y horario
+            grupos_duplicados = {}
+            for dup in duplicados:
+                key = (dup.fecha, dup.horario_id)
+                if key not in grupos_duplicados:
+                    grupos_duplicados[key] = []
+                grupos_duplicados[key].append(dup.id)
+            
+            # Resolver duplicados (mantener el ID más bajo y eliminar los demás)
+            for key, ids in grupos_duplicados.items():
+                fecha, horario_id = key
+                ids_ordenados = sorted(ids)
+                id_mantener = ids_ordenados[0]
+                ids_eliminar = ids_ordenados[1:]
+                
+                resultados['mensajes'].append(f"Manteniendo clase ID {id_mantener} para fecha {fecha} y horario {horario_id}")
+                
+                for id_eliminar in ids_eliminar:
+                    try:
+                        # Eliminar directo con SQL para evitar restricciones
+                        db.session.execute(f"DELETE FROM clase_realizada WHERE id = {id_eliminar}")
+                        resultados['mensajes'].append(f"Eliminada clase duplicada ID {id_eliminar}")
+                    except Exception as e:
+                        resultados['mensajes'].append(f"Error al eliminar clase ID {id_eliminar}: {str(e)}")
+            
+            db.session.commit()
+        else:
+            resultados['mensajes'].append("No se encontraron clases duplicadas")
+        
+        # 3. Buscar clases con referencias a horarios que ya no existen
+        sql_huerfanas = """
+        SELECT cr.id, cr.fecha, cr.horario_id
+        FROM clase_realizada cr
+        LEFT JOIN horario_clase hc ON cr.horario_id = hc.id
+        WHERE hc.id IS NULL
+        """
+        
+        huerfanas = db.session.execute(sql_huerfanas).fetchall()
+        
+        if huerfanas:
+            resultados['mensajes'].append(f"Se encontraron {len(huerfanas)} clases huérfanas (sin horario asociado)")
+            
+            for h in huerfanas:
+                try:
+                    # Intentar recuperar eliminando solo la clase problemática
+                    db.session.execute(f"DELETE FROM clase_realizada WHERE id = {h.id}")
+                    resultados['mensajes'].append(f"Eliminada clase huérfana ID {h.id} (fecha: {h.fecha}, horario_id inválido: {h.horario_id})")
+                except Exception as e:
+                    resultados['mensajes'].append(f"Error al eliminar clase huérfana ID {h.id}: {str(e)}")
+            
+            db.session.commit()
+        else:
+            resultados['mensajes'].append("No se encontraron clases huérfanas")
+        
+        # 4. Verificar consistencia de profesores
+        sql_prof_inconsistentes = """
+        SELECT cr.id, cr.fecha, cr.horario_id, cr.profesor_id as prof_clase, hc.profesor_id as prof_horario
+        FROM clase_realizada cr
+        JOIN horario_clase hc ON cr.horario_id = hc.id
+        WHERE cr.profesor_id != hc.profesor_id
+        """
+        
+        inconsistentes = db.session.execute(sql_prof_inconsistentes).fetchall()
+        
+        if inconsistentes:
+            resultados['mensajes'].append(f"Se encontraron {len(inconsistentes)} clases con profesor inconsistente")
+            
+            for inc in inconsistentes:
+                try:
+                    # Corregir la inconsistencia actualizando el profesor de la clase al del horario
+                    db.session.execute(
+                        "UPDATE clase_realizada SET profesor_id = :prof_horario WHERE id = :id",
+                        {'prof_horario': inc.prof_horario, 'id': inc.id}
+                    )
+                    resultados['mensajes'].append(f"Corregida clase ID {inc.id} - profesor actualizado de {inc.prof_clase} a {inc.prof_horario}")
+                except Exception as e:
+                    resultados['mensajes'].append(f"Error al corregir profesor en clase ID {inc.id}: {str(e)}")
+            
+            db.session.commit()
+        else:
+            resultados['mensajes'].append("No se encontraron clases con profesor inconsistente")
+            
+        # Final: Compactar la base de datos (VACUUM)
+        try:
+            db.session.execute("VACUUM")
+            resultados['mensajes'].append("Base de datos compactada exitosamente")
+        except Exception as e:
+            resultados['mensajes'].append(f"Error al compactar la base de datos: {str(e)}")
+        
+        flash('Depuración de base de datos completada con éxito', 'success')
+        
+    except Exception as e:
+        resultados['success'] = False
+        resultados['mensajes'].append(f"Error general: {str(e)}")
+        flash(f'Error durante la depuración: {str(e)}', 'danger')
+    
+    return render_template('mantenimiento/depurar_base_datos.html', resultados=resultados)
+
+@app.route('/mantenimiento/test-debug')
+def test_debug_mantenimiento():
+    return "Ruta de prueba para mantenimiento activa"
+
+@app.route('/test-debug-root')
+def test_debug_root():
+    return "Ruta de prueba en la raíz activa"
