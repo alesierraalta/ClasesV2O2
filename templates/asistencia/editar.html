@@ -55,7 +55,11 @@
                         </div>
                         
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('control_asistencia') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            {% if clase.fecha == now().date() %}
+                                <a href="{{ url_for('control_asistencia') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            {% else %}
+                                <a href="{{ url_for('clases_no_registradas') }}" class="btn btn-secondary me-md-2">Volver al Historial</a>
+                            {% endif %}
                             <button type="submit" class="btn btn-warning">Actualizar Registro</button>
                         </div>
                     </form>
