@@ -740,7 +740,7 @@ def editar_asistencia(id):
         if clase_realizada.fecha == hoy:
             return redirect(url_for('control_asistencia'))
         else:
-            return redirect(url_for('clases_no_registradas'))
+            return redirect(url_for('historial_asistencia'))
     
     return render_template('asistencia/editar.html', clase=clase_realizada)
 

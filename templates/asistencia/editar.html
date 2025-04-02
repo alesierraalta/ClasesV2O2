@@ -58,7 +58,7 @@
                             {% if clase.fecha == now().date() %}
                                 <a href="{{ url_for('control_asistencia') }}" class="btn btn-secondary me-md-2">Cancelar</a>
                             {% else %}
-                                <a href="{{ url_for('clases_no_registradas') }}" class="btn btn-secondary me-md-2">Volver al Historial</a>
+                                <a href="{{ url_for('historial_asistencia') }}" class="btn btn-secondary me-md-2">Volver al Historial</a>
                             {% endif %}
                             <button type="submit" class="btn btn-warning">Actualizar Registro</button>
                         </div>
