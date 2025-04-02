@@ -2496,10 +2496,18 @@ def registrar_asistencia_fecha(fecha, horario_id):
     
     horario = HorarioClase.query.get_or_404(horario_id)
     
-    # Verificar si la clase ya está registrada
+    # Verificar si la clase ya está registrada para la fecha específica
     clase_existente = ClaseRealizada.query.filter_by(fecha=fecha_obj, horario_id=horario_id).first()
     if clase_existente:
+        flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
         return redirect(url_for('editar_asistencia', id=clase_existente.id))
+    
+    # Verificar si la clase ya está registrada para la fecha actual (para evitar confusiones)
+    hoy = datetime.now().date()
+    if fecha_obj != hoy:  # Solo realizar esta comprobación si la fecha no es hoy
+        clase_hoy = ClaseRealizada.query.filter_by(fecha=hoy, horario_id=horario_id).first()
+        if clase_hoy:
+            flash(f'Atención: Ya existe un registro para la clase {horario.nombre} en la fecha actual ({hoy.strftime("%d/%m/%Y")})', 'info')
     
     # Procesar el formulario si es POST
     if request.method == 'POST':
@@ -2533,7 +2541,6 @@ def registrar_asistencia_fecha(fecha, horario_id):
         
         # Si la fecha es hoy, redirigir al control de asistencia
         # Si es una fecha anterior, redirigir al historial de clases no registradas
-        hoy = datetime.now().date()
         if fecha_obj == hoy:
             return redirect(url_for('control_asistencia'))
         else:
