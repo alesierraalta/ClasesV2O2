@@ -254,7 +254,6 @@ class ClaseRealizada(db.Model):
     horario_id = db.Column(db.Integer, db.ForeignKey('horario_clase.id'), nullable=False)
     profesor_id = db.Column(db.Integer, db.ForeignKey('profesor.id'), nullable=False)
     hora_llegada_profesor = db.Column(db.Time, nullable=True)  # Hora real de llegada
-    hora_inicio = db.Column(db.Time, nullable=True)  # Hora de inicio programada
     cantidad_alumnos = db.Column(db.Integer, default=0)
     observaciones = db.Column(db.Text)
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
@@ -273,7 +272,7 @@ class ClaseRealizada(db.Model):
             return "N/A"
         
         # Usar la hora_inicio de la instancia si está disponible, sino usar la del horario
-        hora_inicio_referencia = self.hora_inicio if self.hora_inicio else self.horario.hora_inicio
+        hora_inicio_referencia = self.horario.hora_inicio
         
         diferencia_minutos = (
             datetime.combine(date.min, self.hora_llegada_profesor) - 
@@ -692,7 +691,6 @@ def registrar_asistencia(horario_id):
                 horario_id=horario_id,
                 profesor_id=profesor_id,
                 hora_llegada_profesor=hora_llegada_time,
-                hora_inicio=horario.hora_inicio,  # Guardar explícitamente la hora_inicio
                 cantidad_alumnos=cantidad_alumnos,
                 observaciones=observaciones
             )
@@ -1671,7 +1669,6 @@ def importar_asistencia():
                                 horario_id=horario.id,
                                 profesor_id=profesor.id,
                                 hora_llegada_profesor=None if no_asistio else hora,
-                                hora_inicio=hora,  # Guardar explícitamente la hora_inicio
                                 cantidad_alumnos=alumnos,
                                 observaciones="PROFESOR NO ASISTIÓ" if no_asistio else ""
                             )
@@ -1690,7 +1687,6 @@ def importar_asistencia():
                             # Update existing record
                             clase_existente.profesor_id = profesor.id
                             clase_existente.hora_llegada_profesor = None if no_asistio else hora
-                            clase_existente.hora_inicio = hora  # Actualizar la hora_inicio
                             clase_existente.cantidad_alumnos = alumnos
                             if no_asistio:
                                 clase_existente.observaciones = "PROFESOR NO ASISTIÓ"
@@ -1970,7 +1966,6 @@ def importar_asistencia_excel():
                         horario_id=horario.id,
                         profesor_id=profesor.id,
                         hora_llegada_profesor=None if no_asistio else hora,
-                        hora_inicio=hora,  # Guardar explícitamente la hora_inicio
                         cantidad_alumnos=alumnos,
                         observaciones="PROFESOR NO ASISTIÓ" if no_asistio else ""
                     )
@@ -1989,7 +1984,6 @@ def importar_asistencia_excel():
                     # Update existing record
                     clase_existente.profesor_id = profesor.id
                     clase_existente.hora_llegada_profesor = None if no_asistio else hora
-                    clase_existente.hora_inicio = hora  # Actualizar la hora_inicio
                     clase_existente.cantidad_alumnos = alumnos
                     if no_asistio:
                         clase_existente.observaciones = "PROFESOR NO ASISTIÓ"
@@ -2874,21 +2868,17 @@ def registrar_asistencia_fecha(fecha, horario_id):
                 horario_id=horario.id,
                 profesor_id=profesor_id,
                 hora_llegada_profesor=hora_llegada,
-                hora_inicio=horario.hora_inicio,  # Guardar explícitamente la hora programada
                 cantidad_alumnos=cantidad_alumnos,
                 observaciones=observaciones,
                 fecha_registro=datetime.utcnow()
             )
             
-            print(f"DEBUG: Registrando clase con hora_inicio={horario.hora_inicio} (tipo: {type(horario.hora_inicio)}) para fecha={fecha_obj}")
             
             # Agregar y guardar en la base de datos
             db.session.add(nueva_clase)
             db.session.commit()
             
-            # Verificar que la hora_inicio se guardó correctamente
             db.session.refresh(nueva_clase)
-            print(f"DEBUG: Después de guardar, clase.hora_inicio={nueva_clase.hora_inicio} (tipo: {type(nueva_clase.hora_inicio)}) para ID={nueva_clase.id}")
             
             # Mensaje especial si se usó una fecha manual
             if fecha_manual and fecha_manual != fecha:
@@ -2988,21 +2978,17 @@ def registrar_clases_no_registradas():
                     fecha=fecha_obj,
                     horario_id=horario_id,
                     profesor_id=profesor_id,
-                    hora_inicio=horario.hora_inicio,  # Guardar hora de inicio del horario
                     cantidad_alumnos=0,  # Por defecto, sin alumnos
                     observaciones="Registrada automáticamente",
                     fecha_registro=datetime.utcnow()
                 )
                 
-                print(f"DEBUG: Registrando clase con hora_inicio={horario.hora_inicio} (tipo: {type(horario.hora_inicio)})")
                 
                 # Guardar en la base de datos
                 db.session.add(nueva_clase)
                 db.session.commit()
                 
-                # Verificar que la hora_inicio se guardó correctamente
                 db.session.refresh(nueva_clase)
-                print(f"DEBUG: Después de guardar, clase.hora_inicio={nueva_clase.hora_inicio} (tipo: {type(nueva_clase.hora_inicio)})")
                 
                 # Registrar éxito
                 clases_registradas += 1
