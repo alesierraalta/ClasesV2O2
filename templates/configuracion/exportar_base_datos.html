@@ -111,9 +111,17 @@
                                         Descargue una copia completa del archivo de base de datos SQLite.
                                         Esto permite crear copias de seguridad del sistema completo.
                                     </p>
-                                    <a href="{{ url_for('exportar_db') }}" class="btn btn-primary">
-                                        <i class="fas fa-download me-1"></i> Descargar archivo de base de datos
-                                    </a>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('exportar_db') }}" class="btn btn-primary">
+                                            <i class="fas fa-download me-1"></i> Descargar archivo de base de datos
+                                        </a>
+                                        <a href="{{ url_for('exportar_db_completo') }}" class="btn btn-success">
+                                            <i class="fas fa-download me-1"></i> Descargar backup completo (DB + Audios)
+                                        </a>
+                                    </div>
+                                    <div class="alert alert-info mt-3 small">
+                                        <i class="fas fa-info-circle me-1"></i> La opción de backup completo incluye los archivos de audio y es recomendada para preservar todas tus grabaciones.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -128,44 +136,110 @@
                                         Reemplace la base de datos actual con un archivo previamente exportado.
                                         <strong>ADVERTENCIA: Esta acción reemplazará todos los datos actuales.</strong>
                                     </p>
-                                    <form method="POST" action="{{ url_for('importar_db') }}" enctype="multipart/form-data">
-                                        <div class="mb-3">
-                                            <label for="db_file" class="form-label">Seleccione el archivo .db a importar:</label>
-                                            <input class="form-control" type="file" id="db_file" name="db_file" accept=".db">
-                                        </div>
-                                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmImportModal">
-                                            <i class="fas fa-upload me-1"></i> Importar base de datos
-                                        </button>
-                                        
-                                        <!-- Modal de confirmación -->
-                                        <div class="modal fade" id="confirmImportModal" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-danger text-white">
-                                                        <h5 class="modal-title">¡Advertencia! Acción irreversible</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="alert alert-warning">
-                                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                                            <strong>Esta acción reemplazará completamente su base de datos actual.</strong>
-                                                        </div>
-                                                        <p>Al confirmar:</p>
-                                                        <ul>
-                                                            <li>Se creará una copia de seguridad de su base de datos actual</li>
-                                                            <li>Todos los datos actuales serán reemplazados por los del archivo importado</li>
-                                                            <li>Este proceso no se puede deshacer fácilmente</li>
-                                                        </ul>
-                                                        <p>¿Está seguro de que desea continuar?</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                        <button type="submit" class="btn btn-danger">Sí, importar archivo</button>
+                                    
+                                    <ul class="nav nav-tabs mb-3" id="importTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="db-tab" data-bs-toggle="tab" data-bs-target="#db-content" type="button" role="tab" aria-selected="true">Importar DB (.db)</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-content" type="button" role="tab" aria-selected="false">Importar Backup Completo (.zip)</button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="importTabsContent">
+                                        <!-- Pestaña de importar solo DB -->
+                                        <div class="tab-pane fade show active" id="db-content" role="tabpanel">
+                                            <form method="POST" action="{{ url_for('importar_db') }}" enctype="multipart/form-data">
+                                                <div class="mb-3">
+                                                    <label for="db_file" class="form-label">Seleccione el archivo .db a importar:</label>
+                                                    <input class="form-control" type="file" id="db_file" name="db_file" accept=".db">
+                                                    <div class="form-text">
+                                                        <i class="fas fa-info-circle"></i> Los audios existentes se preservarán durante la importación.
                                                     </div>
                                                 </div>
-                                            </div>
+                                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmImportModal">
+                                                    <i class="fas fa-upload me-1"></i> Importar base de datos
+                                                </button>
+                                                
+                                                <!-- Modal de confirmación -->
+                                                <div class="modal fade" id="confirmImportModal" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title">¡Advertencia! Acción irreversible</h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="alert alert-warning">
+                                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                    <strong>Esta acción reemplazará completamente su base de datos actual.</strong>
+                                                                </div>
+                                                                <p>Al confirmar:</p>
+                                                                <ul>
+                                                                    <li>Se creará una copia de seguridad de su base de datos actual</li>
+                                                                    <li>Todos los datos actuales serán reemplazados por los del archivo importado</li>
+                                                                    <li>Los archivos de audio existentes se preservarán</li>
+                                                                    <li>Este proceso no se puede deshacer fácilmente</li>
+                                                                </ul>
+                                                                <p>¿Está seguro de que desea continuar?</p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-danger">Sí, importar archivo</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </form>
                                         </div>
-                                    </form>
+                                        
+                                        <!-- Pestaña de importar backup completo -->
+                                        <div class="tab-pane fade" id="backup-content" role="tabpanel">
+                                            <form method="POST" action="{{ url_for('importar_db_completo') }}" enctype="multipart/form-data">
+                                                <div class="mb-3">
+                                                    <label for="zip_file" class="form-label">Seleccione el archivo .zip a importar:</label>
+                                                    <input class="form-control" type="file" id="zip_file" name="zip_file" accept=".zip">
+                                                    <div class="form-text">
+                                                        <i class="fas fa-info-circle"></i> Este archivo debe contener la base de datos y los archivos de audio.
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmCompleteImportModal">
+                                                    <i class="fas fa-upload me-1"></i> Importar backup completo
+                                                </button>
+                                                
+                                                <!-- Modal de confirmación para backup completo -->
+                                                <div class="modal fade" id="confirmCompleteImportModal" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title">¡Advertencia! Acción irreversible</h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="alert alert-warning">
+                                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                    <strong>Esta acción reemplazará completamente su base de datos y archivos de audio.</strong>
+                                                                </div>
+                                                                <p>Al confirmar:</p>
+                                                                <ul>
+                                                                    <li>Se creará una copia de seguridad de su base de datos actual</li>
+                                                                    <li>Se respaldarán sus archivos de audio actuales</li>
+                                                                    <li>Todos los datos actuales serán reemplazados por los del archivo importado</li>
+                                                                    <li>Se importarán los archivos de audio incluidos en el backup</li>
+                                                                    <li>Este proceso no se puede deshacer fácilmente</li>
+                                                                </ul>
+                                                                <p>¿Está seguro de que desea continuar?</p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-danger">Sí, importar backup completo</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -180,6 +254,8 @@
                             <li>Se recomienda exportar regularmente la base de datos como respaldo</li>
                             <li>Solo importe archivos de base de datos que provengan de versiones compatibles del sistema</li>
                             <li>Después de importar una base de datos, puede ser necesario reiniciar la aplicación</li>
+                            <li><strong>Para conservar los archivos de audio</strong> durante actualizaciones, utilice la opción de <em>Backup Completo</em></li>
+                            <li>Si utiliza la importación de archivo .db simple, los archivos de audio existentes se preservarán automáticamente</li>
                         </ul>
                     </div>
                 </div>
