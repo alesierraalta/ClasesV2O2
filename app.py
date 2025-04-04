@@ -1279,7 +1279,7 @@ def informe_mensual():
         resumen_profesores[profesor['id']]['alumnos_por_tipo'][tipo_clase] += clase['cantidad_alumnos']
         
         # Determinar la hora a considerar para la puntualidad (la de la clase si está disponible, sino la del horario)
-        hora_para_puntualidad = clase['hora_inicio'] if clase['hora_inicio'] else clase['horario']['hora_inicio']
+        hora_para_puntualidad = clase['horario']['hora_inicio']
         
         # Verificar si hubo retraso
         if clase['hora_llegada_profesor'] and clase['hora_llegada_profesor'] > hora_para_puntualidad:
