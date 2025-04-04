@@ -48,7 +48,7 @@ def start_server():
         app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False)
     except Exception as e:
         logger.error(f"Error al iniciar el servidor: {str(e)}")
-        raise
+        raise Exception(f"Error al iniciar el servidor: {str(e)}")
 
 def run_app():
     """Ejecutar la aplicación como ventana de escritorio"""

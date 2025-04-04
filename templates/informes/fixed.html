@@ -133,6 +133,14 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="#no-registradas">
+                                <i class="fas fa-exclamation-circle me-1"></i> No registradas 
+                                {% if clases_no_registradas %}
+                                <span class="badge bg-danger rounded-pill">{{ clases_no_registradas|length }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="#graficos">
                                 <i class="fas fa-chart-pie me-1"></i> Gráficos
                             </a>
@@ -142,6 +150,32 @@
             </div>
         </div>
     </div>
+
+    {% if clases_no_registradas %}
+    <!-- Alerta sobre clases no registradas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Hay {{ clases_no_registradas|length }} clases sin registrar en este mes
+                        </h4>
+                        <p class="mb-0">
+                            Estas clases estaban programadas pero no han sido registradas. Puede usar el enlace para registrarlas.
+                        </p>
+                    </div>
+                    <div>
+                        <a href="#no-registradas" class="btn btn-warning btn-lg">
+                            <i class="fas fa-clipboard-check me-1"></i> Ver clases no registradas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     {% if resumen_profesores %}
     <!-- Cálculos para resumen general -->
@@ -312,15 +346,7 @@
                                                             <tr>
                                                                 <td>{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
                                                                 <td>{{ clase.horario.nombre }}</td>
-                                                                <td>
-                                                                {% if clase.horario.hora_inicio %}
-                                                                    {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
-                                                                {% elif clase.hora_inicio %}
-                                                                    {{ clase.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str|default('--:--') }}
-                                                                {% else %}
-                                                                    --:-- - --:--
-                                                                {% endif %}
-                                                                </td>
+                                                                <td>{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
                                                                 <td>
                                                                     {% if clase.profesor_suplente %}
                                                                         <span class="badge bg-info">Impartida por suplente</span>
@@ -343,10 +369,10 @@
                                                                         <span class="text-muted fst-italic">No registrada</span>
                                                                     {% endif %}
                                                                 </td>
-                                                                <td class="align-middle">
+                                                                <td>
                                                                     {% if clase.hora_llegada_profesor %}
-                                                                        <span class="badge rounded-pill {% if clase.puntualidad == 'Puntual' %}bg-success{% elif clase.puntualidad == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                                                                            {{ clase.puntualidad }}
+                                                                        <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                                            {{ clase.puntualidad() }}
                                                                         </span>
                                                                     {% elif clase.profesor_suplente %}
                                                                         <span class="badge rounded-pill bg-secondary">Suplente</span>
@@ -441,15 +467,7 @@
                                 <tr>
                                     <td class="align-middle">{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
                                     <td class="align-middle fw-medium">{{ clase.horario.nombre }}</td>
-                                    <td class="align-middle">
-                                    {% if clase.horario.hora_inicio %}
-                                        {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
-                                    {% elif clase.hora_inicio %}
-                                        {{ clase.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str|default('--:--') }}
-                                    {% else %}
-                                        --:-- - --:--
-                                    {% endif %}
-                                    </td>
+                                    <td class="align-middle">{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
                                     <td class="align-middle">
                                         {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}
                                         {% if clase.profesor_suplente %}
@@ -479,8 +497,8 @@
                                     </td>
                                     <td class="align-middle">
                                         {% if clase.hora_llegada_profesor %}
-                                            <span class="badge rounded-pill {% if clase.puntualidad == 'Puntual' %}bg-success{% elif clase.puntualidad == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                                                {{ clase.puntualidad }}
+                                            <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                {{ clase.puntualidad() }}
                                             </span>
                                         {% elif clase.profesor_suplente %}
                                             <span class="badge rounded-pill bg-secondary">Suplente</span>
@@ -618,7 +636,7 @@
                                             <span class="badge bg-secondary">OTRO</span>
                                             {% endif %}
                                         </td>
-                                        <td class="align-middle">{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}</td>
+                                        <td class="align-middle">{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
                                         <td class="align-middle">
                                             {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}
                                         </td>
@@ -696,28 +714,98 @@
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="row">
+
+    <!-- Clases No Registradas -->
+    <div id="no-registradas" class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-info shadow-sm">
-                <div class="d-flex">
-                    <div class="me-3">
-                        <i class="fas fa-info-circle fa-3x text-info"></i>
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0"><i class="fas fa-exclamation-circle me-2"></i> Clases No Registradas</h2>
+                    
+                    <!-- Botón para recargar el informe -->
+                    <form action="{{ url_for('informe_mensual') }}" method="POST" class="mb-0">
+                        <input type="hidden" name="mes" value="{{ mes }}">
+                        <input type="hidden" name="anio" value="{{ anio }}">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-sync-alt me-1"></i> Actualizar informe
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="card-body">
+                    {% if clases_no_registradas %}
+                    <p class="mb-3">
+                        <i class="fas fa-info-circle me-2"></i> Estas clases estaban programadas pero no se registraron. Puede registrarlas individualmente o seleccionar varias para registrarlas a la vez.
+                    </p>
+                    
+                    <form action="{{ url_for('registrar_clases_no_registradas') }}" method="POST" id="form-clases-no-registradas">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th width="40">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="check-all-clases">
+                                                <label class="form-check-label" for="check-all-clases"></label>
+                                            </div>
+                                        </th>
+                                        <th>Fecha</th>
+                                        <th>Día</th>
+                                        <th>Hora</th>
+                                        <th>Clase</th>
+                                        <th>Profesor</th>
+                                        <th>Tipo</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for clase in clases_no_registradas %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input clase-checkbox" type="checkbox" name="clases_ids[]" value="{{ clase.fecha.strftime('%Y-%m-%d') }}|{{ clase.horario.id }}">
+                                            </div>
+                                        </td>
+                                        <td>{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
+                                        <td>{{ ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][clase.fecha.weekday()] }}</td>
+                                        <td>{{ clase.horario.hora_inicio.strftime('%H:%M') }}</td>
+                                        <td>{{ clase.horario.nombre }}</td>
+                                        <td>{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ clase.tipo_clase|lower }}">
+                                                {{ clase.tipo_clase }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('registrar_asistencia_fecha', fecha=clase.fecha.strftime('%Y-%m-%d'), horario_id=clase.horario.id) }}" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="fas fa-clipboard-check me-1"></i> Registrar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-success" id="btn-registrar-seleccionadas">
+                                <i class="fas fa-check-double me-1"></i> Registrar Clases Seleccionadas
+                            </button>
+                            <small class="text-muted ms-2">
+                                Las clases seleccionadas se registrarán con 0 alumnos. Podrá editarlas después.
+                            </small>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i> ¡Todas las clases programadas para este mes han sido registradas!
                     </div>
-                    <div>
-                        <h4 class="alert-heading">No hay datos disponibles</h4>
-                        <p>No se encontraron datos para mostrar en el informe del mes de {{ nombre_mes }} de {{ anio }}.</p>
-                        <hr>
-                        <p class="mb-0">Verifica que existan registros de clases para este período o selecciona un mes diferente.</p>
-                        <a href="{{ url_for('informe_mensual') }}" class="btn btn-info mt-3">
-                            <i class="fas fa-calendar-alt me-1"></i> Seleccionar otro mes
-                        </a>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- Botón volver flotante -->
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
@@ -1195,13 +1283,11 @@
         clasesData.push([
             "{{ clase.fecha.strftime('%d/%m/%Y') }}",
             "{{ clase.horario.nombre }}",
-            {% if clase.horario.hora_inicio %}"{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}"
-            {% elif clase.hora_inicio %}"{{ clase.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str|default('--:--') }}"
-            {% else %}"--:-- - --:--"{% endif %},
+            "{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}",
             "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}",
             {% if clase.profesor_suplente %}"Suplente"{% elif clase.ausencia_profesor %}"Cancelada"{% else %}"Normal"{% endif %},
             {% if clase.hora_llegada_profesor %}"{{ clase.hora_llegada_profesor.strftime('%H:%M') }}"{% else %}"N/A"{% endif %},
-            {% if clase.hora_llegada_profesor %}"{{ clase.puntualidad }}"{% else %}"N/A"{% endif %},
+            {% if clase.hora_llegada_profesor %}"{{ clase.puntualidad() }}"{% else %}"N/A"{% endif %},
             "{{ clase.cantidad_alumnos }}",
             "{{ clase.observaciones|default('') }}"
         ]);
@@ -1223,7 +1309,7 @@
             "{{ clase.fecha.strftime('%d/%m/%Y') }}",
             "{{ clase.horario.nombre }}",
             "{{ clase.tipo_clase }}",
-            "{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}",
+            "{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}",
             "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}"
         ]);
         {% endfor %}
@@ -1238,4 +1324,6 @@
         XLSX.writeFile(wb, "Informe_Mensual_{{ nombre_mes }}_{{ anio }}.xlsx");
     }
 </script>
-{% endblock %} 
+{% if clases_no_registradas %}
+{% endif %}
+{% endblock %} {% endif %}

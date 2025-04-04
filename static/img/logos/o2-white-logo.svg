@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Oval shape with number 2 - Versión blanca -->
+  <ellipse cx="100" cy="100" rx="95" ry="80" fill="none" stroke="#ffffff" stroke-width="16"/>
+  <ellipse cx="100" cy="100" rx="70" ry="58" fill="none" stroke="#ffffff" stroke-width="16"/>
+  <!-- Number 2 with more accurate styling -->
+  <path d="M128,140H74v-12l34-34c5-5,8-9,8-14c0-7-5-12-12-12s-12,5-12,12H76c0-16,13-28,28-28s28,12,28,28c0,8-4,16-11,22l-25,26h32V140z" fill="#ffffff"/>
+</svg> 

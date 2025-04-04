@@ -132,6 +132,9 @@
         /* iOS Navigation Bar adjustments */
         .navbar.ios-navbar {
             padding: 0;
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            z-index: 1040;
         }
         
         .navbar.ios-navbar .container-fluid {
@@ -141,6 +144,43 @@
         .navbar.ios-navbar .fw-bold {
             padding: 0;
             margin: 0;
+        }
+        
+        /* Back button styles */
+        .back-button {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            z-index: 1050;
+            border: none;
+            opacity: 0;
+            outline: none !important;
+        }
+        
+        .back-button:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-50%) scale(1.05);
+        }
+        
+        .back-button:active, .back-button.clicked {
+            transform: translateY(-50%) scale(0.95);
+            background-color: #f0f0f0;
+        }
+        
+        .back-button i {
+            font-size: 18px;
+            color: #444;
         }
         
         /* O2 Tab logo */
@@ -156,22 +196,17 @@
 <body>
     <!-- iOS Navigation Bar -->
     <nav class="navbar navbar-light ios-navbar fixed-top">
-        <div class="container-fluid">
-            <div class="d-flex justify-content-between align-items-center w-100">
-                <a id="backButton" href="javascript:history.back()" class="text-dark d-none">
-                    <i class="fas fa-chevron-left me-1"></i>
-                </a>
-                <span class="text-center w-100 m-0 p-0">
-                    <img src="{{ url_for('static', filename='img/images/Logos-11.png') }}" alt="O2 Logo" class="o2-logo">
-                </span>
-                <div class="invisible">
-                    <i class="fas fa-chevron-left"></i>
-                </div>
+        <div class="container-fluid position-relative">
+            <button id="backButton" class="back-button d-none">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="w-100 text-center">
+                <img src="{{ url_for('static', filename='img/images/Logos-11.png') }}" alt="O2 Logo" class="o2-logo">
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid mt-3 pt-5">
+    <div class="container-fluid mt-5 pt-5">
         <div class="row">
             <!-- Contenido principal -->
             <main class="col-12 px-md-4 py-4">
@@ -245,11 +280,43 @@
 
     <!-- Scripts para navegación iOS -->
     <script>
-        // Mostrar botón de atrás si no estamos en la página de inicio
+        // Gestión mejorada del botón de regreso
         document.addEventListener('DOMContentLoaded', function() {
-            if(window.location.pathname !== '/' && window.location.pathname !== '/index') {
-                document.getElementById('backButton').classList.remove('d-none');
+            const backButton = document.getElementById('backButton');
+            
+            // Verificar si estamos en una página donde el botón de regreso debería mostrarse
+            const isMainPage = window.location.pathname === '/' || 
+                              window.location.pathname === '/index' || 
+                              window.location.pathname === '/simple';
+            
+            if (!isMainPage && document.referrer) {
+                // Si no estamos en la página principal y hay una página anterior, mostrar el botón
+                backButton.classList.remove('d-none');
+                
+                // Añadir animación sutil al mostrar el botón
+                setTimeout(() => {
+                    backButton.style.opacity = '1';
+                }, 100);
             }
+            
+            // Personalizar comportamiento del botón de regreso
+            backButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Efecto visual al hacer clic
+                this.classList.add('clicked');
+                
+                // Retrasar ligeramente la navegación para que se vea la animación
+                setTimeout(() => {
+                    // Verificar si hay historial para regresar
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        // Si no hay historial, ir a la página principal
+                        window.location.href = '/';
+                    }
+                }, 150);
+            });
             
             // Manejar el menú desplegable de Configuración
             const configTab = document.querySelector('.ios-tab-item[href*="configuracion"]');
@@ -274,7 +341,24 @@
             }
         });
     </script>
-    <!-- Otros scripts específicos de la página -->
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    
+    <!-- Script para Navbar de efecto sombra -->
+    <script>
+        // Controla la sombra del navbar según el scroll
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar.ios-navbar');
+            if (window.scrollY > 20) {
+                navbar.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+            } else {
+                navbar.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
+            }
+        });
+    </script>
+    
     {% block scripts %}{% endblock %}
 
     <!-- Objeto con todas las URLs de la aplicación -->
@@ -290,7 +374,5 @@
         // ...
     };
     </script>
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 </body>
 </html>

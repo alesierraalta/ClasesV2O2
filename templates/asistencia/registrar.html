@@ -37,6 +37,31 @@
                     <form method="POST" action="{{ url_for('registrar_asistencia', horario_id=horario.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
+                        <!-- Campo para modificar la fecha manualmente -->
+                        <div class="mb-3">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning bg-opacity-25">
+                                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Fecha de la clase</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="fecha_manual" class="form-label fw-bold">Modificar fecha</label>
+                                            <input type="date" class="form-control" id="fecha_manual" name="fecha_manual" value="{{ fecha.strftime('%Y-%m-%d') }}">
+                                            <div class="form-text text-danger">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> ATENCIÓN: Si cambia esta fecha, la clase se registrará con la fecha que indique aquí, no con la fecha original.
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 d-flex align-items-center">
+                                            <p class="mb-0 text-danger fst-italic">
+                                                Esta opción es para corregir problemas con el registro de fechas. Use con precaución.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Estado de la clase -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Estado de la clase*</label>

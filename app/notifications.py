@@ -184,7 +184,7 @@ def check_and_notify_unregistered_classes():
                 
         except Exception as e:
             logger.error(f"Error al verificar clases no registradas: {str(e)}")
-            raise  # Re-lanzar la excepción para que se muestre en la interfaz de usuario
+            raise Exception(f"Error al verificar clases no registradas: {str(e)}")  # Re-lanzar una excepción válida
 
 def calcular_hora_fin(hora_inicio, duracion):
     """Calcula la hora de finalización de una clase"""

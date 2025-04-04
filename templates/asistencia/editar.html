@@ -23,7 +23,7 @@
                         <div class="alert alert-info">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p class="mb-1"><strong>Fecha:</strong> {{ clase.fecha.strftime('%d/%m/%Y') }}</p>
+                                    <p class="mb-1"><strong>Fecha original:</strong> {{ clase.fecha.strftime('%d/%m/%Y') }}</p>
                                     <p class="mb-1"><strong>Horario:</strong> {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</p>
                                 </div>
                                 <div class="col-md-6">
@@ -39,6 +39,19 @@
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
+                                <label for="fecha" class="form-label">Fecha de la clase *</label>
+                                <input type="date" class="form-control" id="fecha" name="fecha" value="{{ clase.fecha.strftime('%Y-%m-%d') }}" required>
+                                <div class="form-text">Modifique esta fecha si necesita corregir el día de la clase.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hora_llegada" class="form-label">Hora de llegada del profesor</label>
+                                <input type="time" class="form-control" id="hora_llegada" name="hora_llegada" value="{{ clase.hora_llegada_profesor.strftime('%H:%M') if clase.hora_llegada_profesor else '' }}">
+                                <div class="form-text">Dejar en blanco si no se registró la hora exacta.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
                                 <label for="profesor_id" class="form-label">Profesor que impartió la clase *</label>
                                 <select class="form-select" id="profesor_id" name="profesor_id" required>
                                     {% for profesor in profesores %}
@@ -50,15 +63,9 @@
                                 <div class="form-text">Seleccione el profesor que realmente impartió esta clase.</div>
                             </div>
                             <div class="col-md-6">
-                                <label for="hora_llegada" class="form-label">Hora de llegada del profesor</label>
-                                <input type="time" class="form-control" id="hora_llegada" name="hora_llegada" value="{{ clase.hora_llegada_profesor.strftime('%H:%M') if clase.hora_llegada_profesor else '' }}">
-                                <div class="form-text">Dejar en blanco si no se registró la hora exacta.</div>
+                                <label for="cantidad_alumnos" class="form-label">Cantidad de alumnos *</label>
+                                <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" min="0" max="{{ clase.horario.capacidad_maxima }}" value="{{ clase.cantidad_alumnos }}" required>
                             </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="cantidad_alumnos" class="form-label">Cantidad de alumnos *</label>
-                            <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" min="0" max="{{ clase.horario.capacidad_maxima }}" value="{{ clase.cantidad_alumnos }}" required>
                         </div>
                         
                         <div class="mb-3">
