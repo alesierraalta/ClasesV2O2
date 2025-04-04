@@ -978,7 +978,7 @@ def informe_mensual():
         sql_clases = """
         SELECT 
             cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
-            cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro, cr.hora_inicio,
+            cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
             hc.nombre, hc.hora_inicio as horario_hora_inicio, hc.tipo_clase, hc.duracion,
             p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
         FROM clase_realizada cr
@@ -1088,29 +1088,16 @@ def informe_mensual():
                 except ValueError:
                     hora_inicio_horario = datetime.now().time()
         
-        # Obtener la hora_inicio de la clase realizada y procesar adecuadamente
-        hora_inicio_clase = row.hora_inicio
-        if hora_inicio_clase:
-            if isinstance(hora_inicio_clase, str):
-                try:
-                    hora_inicio_clase = datetime.strptime(hora_inicio_clase, '%H:%M:%S').time()
-                except ValueError:
-                    try:
-                        hora_inicio_clase = datetime.strptime(hora_inicio_clase, '%H:%M').time()
-                    except ValueError:
-                        print(f"ERROR: No se pudo convertir hora_inicio: {hora_inicio_clase}")
-                        hora_inicio_clase = None
-        
-        print(f"DEBUG: Procesando clase id={row.id}, fecha={row.fecha}, hora_inicio={hora_inicio_clase}, hora_horario={hora_inicio_horario}")
-                    
         # Obtener la duración o usar valor por defecto
         duracion = getattr(row, 'duracion', 60)
         
         # Calcular la hora de finalización como string
         hora_fin_str = calcular_hora_fin(hora_inicio_horario, duracion)
         
-        # Calcular puntualidad - usar hora_inicio_clase si está disponible, sino hora_inicio_horario
-        hora_para_puntualidad = hora_inicio_clase if hora_inicio_clase else hora_inicio_horario
+        # Para la puntualidad usamos la hora del horario original
+        hora_para_puntualidad = hora_inicio_horario
+        
+        print(f"DEBUG: Procesando clase id={row.id}, fecha={row.fecha}, hora_horario={hora_inicio_horario}")
         
         # Crear un objeto para representar la clase realizada
         clase = {
@@ -1122,7 +1109,6 @@ def informe_mensual():
             'cantidad_alumnos': row.cantidad_alumnos,
             'observaciones': row.observaciones,
             'audio_file': row.audio_file,
-            'hora_inicio': hora_inicio_clase,  # Usar directamente hora_inicio de clase_realizada
             'horario': {
                 'id': row.horario_id,
                 'nombre': row.nombre,
@@ -1140,7 +1126,7 @@ def informe_mensual():
             'puntualidad': calcular_puntualidad(hora_llegada, hora_para_puntualidad)
         }
         
-        print(f"DEBUG: Añadiendo clase al informe - ID: {row.id}, fecha: {fecha}, hora_inicio: {hora_inicio_clase}, hora_horario: {hora_inicio_horario}")
+        print(f"DEBUG: Añadiendo clase al informe - ID: {row.id}, fecha: {fecha}, hora_horario: {hora_inicio_horario}")
         
         clases_realizadas.append(clase)
     
