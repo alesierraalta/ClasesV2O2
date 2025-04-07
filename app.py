@@ -952,68 +952,6 @@ def informes():
 
 @app.route('/informes/mensual', methods=['GET', 'POST'])
 def informe_mensual():
-    # Para peticiones GET con parámetros
-    if request.method == 'GET' and 'mes' in request.args and 'anio' in request.args:
-        mes = int(request.args.get('mes'))
-        anio = int(request.args.get('anio'))
-        
-        # Obtener el primer y último día del mes
-        primer_dia = date(anio, mes, 1)
-        ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
-        
-        # Mensaje de depuración
-        timestamp_actual = int(time_module.time())
-        print(f"DEBUG: Ejecutando informe_mensual para {mes}/{anio} con timestamp: {timestamp_actual}")
-        
-        # Forzar sincronización de la base de datos y limpiar caché
-        db.session.commit()
-        db.session.close()
-        db.session = db.create_scoped_session()
-        db.session.expire_all()
-        
-        # Consultar clases realizadas en el rango de fechas usando SQL directo
-        # para evitar problemas de caché
-        sql_clases = """
-        SELECT 
-            cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
-            cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
-            hc.nombre, hc.hora_inicio as horario_hora_inicio, hc.tipo_clase, hc.duracion,
-            p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
-        FROM clase_realizada cr
-        JOIN horario_clase hc ON cr.horario_id = hc.id
-        JOIN profesor p ON cr.profesor_id = p.id
-        WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
-        ORDER BY cr.fecha, hc.hora_inicio
-        """
-        
-        # Crear una conexión fresca para asegurar que no hay caché
-        connection = db.engine.connect()
-        result_clases = connection.execute(sql_clases, {
-            'fecha_inicio': primer_dia,
-            'fecha_fin': ultimo_dia
-        })
-        
-    elif request.method == 'POST':
-        mes = int(request.form['mes'])
-        anio = int(request.form['anio'])
-        
-        # Obtener el primer y último día del mes
-        primer_dia = date(anio, mes, 1)
-        ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
-        
-    else:
-        # Para peticiones GET sin parámetros, mostrar el formulario
-        hoy = datetime.now()
-        mes_actual = hoy.month
-        anio_actual = hoy.year
-        return render_template('informes/mensual.html', mes_actual=mes_actual, anio_actual=anio_actual)
-    
-    # Esta parte se ejecuta tanto para POST como para GET con parámetros
-    # Limpiar caché de la sesión
-    db.session.commit()
-    db.session.close()
-    db.session = db.create_scoped_session()
-    
     # Función para calcular la hora de finalización como string
     def calcular_hora_fin(hora_inicio, duracion=60):
         if not hora_inicio:
@@ -1037,6 +975,26 @@ def informe_mensual():
         if not hora_llegada:
             return "N/A"
         
+        # Si hora_llegada es string, convertirla a objeto time
+        if isinstance(hora_llegada, str):
+            try:
+                hora_llegada = datetime.strptime(hora_llegada, '%H:%M').time()
+            except ValueError:
+                try:
+                    hora_llegada = datetime.strptime(hora_llegada, '%H:%M:%S').time()
+                except ValueError:
+                    return "Error formato"
+        
+        # Si hora_inicio es string, convertirla a objeto time
+        if isinstance(hora_inicio, str):
+            try:
+                hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+            except ValueError:
+                try:
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+                except ValueError:
+                    return "Error formato"
+        
         if hora_llegada <= hora_inicio:
             return "Puntual"
         
@@ -1049,6 +1007,58 @@ def informe_mensual():
             return "Retraso leve"
         else:
             return "Retraso significativo"
+
+    # Para peticiones GET con parámetros
+    if request.method == 'GET' and request.args.get('mes') and request.args.get('anio'):
+        mes = int(request.args.get('mes'))
+        anio = int(request.args.get('anio'))
+        
+        # Obtener el primer y último día del mes
+        primer_dia = date(anio, mes, 1)
+        ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
+        
+    elif request.method == 'POST':
+        mes = int(request.form['mes'])
+        anio = int(request.form['anio'])
+        
+        # Obtener el primer y último día del mes
+        primer_dia = date(anio, mes, 1)
+        ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
+        
+    else:
+        # Para peticiones GET sin parámetros, mostrar el formulario
+        hoy = datetime.now()
+        mes_actual = hoy.month
+        anio_actual = hoy.year
+        return render_template('informes/mensual.html', mes_actual=mes_actual, anio_actual=anio_actual)
+    
+    # Esta parte se ejecuta tanto para POST como para GET con parámetros
+    # Limpiar caché de la sesión
+    db.session.commit()
+    db.session.close()
+    db.session = db.create_scoped_session()
+    
+    # Consultar clases realizadas en el rango de fechas usando SQL directo
+    # para evitar problemas de caché
+    sql_clases = """
+    SELECT 
+        cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
+        cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
+        hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
+        p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
+    FROM clase_realizada cr
+    JOIN horario_clase hc ON cr.horario_id = hc.id
+    JOIN profesor p ON cr.profesor_id = p.id
+    WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
+    ORDER BY cr.fecha, hc.hora_inicio
+    """
+    
+    # Crear una conexión fresca para asegurar que no hay caché
+    connection = db.engine.connect()
+    result_clases = connection.execute(sql_clases, {
+        'fecha_inicio': primer_dia,
+        'fecha_fin': ultimo_dia
+    })
     
     # Procesar los resultados y crear objetos para facilitar el manejo
     clases_realizadas = []
@@ -1066,36 +1076,41 @@ def informe_mensual():
 
         # Asegurarse de que hora_llegada_profesor sea un objeto time
         hora_llegada = row.hora_llegada_profesor
-        if hora_llegada and isinstance(hora_llegada, str):
-            try:
-                hora_llegada = datetime.strptime(hora_llegada, '%H:%M:%S').time()
-            except ValueError:
+        if hora_llegada:
+            if isinstance(hora_llegada, str):
                 try:
-                    hora_llegada = datetime.strptime(hora_llegada, '%H:%M').time()
+                    hora_llegada = datetime.strptime(hora_llegada, '%H:%M:%S').time()
                 except ValueError:
-                    hora_llegada = None
+                    try:
+                        hora_llegada = datetime.strptime(hora_llegada, '%H:%M').time()
+                    except ValueError:
+                        hora_llegada = None
+        else:
+            hora_llegada = None
 
         # Asegurarse de que hora_inicio sea un objeto time
-        hora_inicio_horario = row.horario_hora_inicio
-        if isinstance(hora_inicio_horario, str):
+        hora_inicio = row.hora_inicio
+        if isinstance(hora_inicio, str):
             try:
-                hora_inicio_horario = datetime.strptime(hora_inicio_horario, '%H:%M:%S').time()
+                hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
             except ValueError:
                 try:
-                    hora_inicio_horario = datetime.strptime(hora_inicio_horario, '%H:%M').time()
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
                 except ValueError:
-                    hora_inicio_horario = datetime.now().time()
+                    hora_inicio = None
         
         # Obtener la duración o usar valor por defecto
         duracion = getattr(row, 'duracion', 60)
         
         # Calcular la hora de finalización como string
-        hora_fin_str = calcular_hora_fin(hora_inicio_horario, duracion)
+        hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
         
         # Para la puntualidad usamos la hora del horario original
-        hora_para_puntualidad = hora_inicio_horario
+        hora_para_puntualidad = hora_inicio
         
-        print(f"DEBUG: Procesando clase id={row.id}, fecha={row.fecha}, hora_horario={hora_inicio_horario}")
+        # Formatear las horas como strings para la plantilla
+        hora_inicio_str = hora_inicio.strftime('%H:%M') if hora_inicio else "00:00"
+        hora_llegada_str = hora_llegada.strftime('%H:%M') if hora_llegada else None
         
         # Crear un objeto para representar la clase realizada
         clase = {
@@ -1104,13 +1119,15 @@ def informe_mensual():
             'horario_id': row.horario_id,
             'profesor_id': row.profesor_id,
             'hora_llegada_profesor': hora_llegada,
+            'hora_llegada_str': hora_llegada_str,
             'cantidad_alumnos': row.cantidad_alumnos,
             'observaciones': row.observaciones,
             'audio_file': row.audio_file,
             'horario': {
                 'id': row.horario_id,
                 'nombre': row.nombre,
-                'hora_inicio': hora_inicio_horario,
+                'hora_inicio': hora_inicio,
+                'hora_inicio_str': hora_inicio_str,
                 'tipo_clase': row.tipo_clase,
                 'duracion': duracion,
                 'hora_fin_str': hora_fin_str
@@ -1123,8 +1140,6 @@ def informe_mensual():
             },
             'puntualidad': calcular_puntualidad(hora_llegada, hora_para_puntualidad)
         }
-        
-        print(f"DEBUG: Añadiendo clase al informe - ID: {row.id}, fecha: {fecha}, hora_horario: {hora_inicio_horario}")
         
         clases_realizadas.append(clase)
     
@@ -1157,7 +1172,7 @@ def informe_mensual():
                 try:
                     hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
                 except ValueError:
-                    hora_inicio = datetime.now().time()
+                    hora_inicio = None
         
         horario = {
             'id': row.id,

@@ -314,7 +314,7 @@
                                                                 <td>{{ clase.horario.nombre }}</td>
                                                                 <td>
                                                                 {% if clase.horario.hora_inicio %}
-                                                                    {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
+                                                                    {{ clase.horario.hora_inicio_str if clase.horario.hora_inicio_str else clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
                                                                 {% else %}
                                                                     --:-- - --:--
                                                                 {% endif %}
@@ -331,8 +331,8 @@
                                                                     {% endif %}
                                                                 </td>
                                                                 <td>
-                                                                    {% if clase.hora_llegada_profesor %}
-                                                                        {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                                                    {% if clase.hora_llegada_str %}
+                                                                        {{ clase.hora_llegada_str }}
                                                                     {% elif clase.profesor_suplente %}
                                                                         <span class="text-muted fst-italic">Suplente</span>
                                                                     {% elif clase.ausencia_profesor %}
@@ -441,7 +441,7 @@
                                     <td class="align-middle fw-medium">{{ clase.horario.nombre }}</td>
                                     <td class="align-middle">
                                     {% if clase.horario.hora_inicio %}
-                                        {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
+                                        {{ clase.horario.hora_inicio_str if clase.horario.hora_inicio_str else clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
                                     {% else %}
                                         --:-- - --:--
                                     {% endif %}
@@ -463,8 +463,8 @@
                                         {% endif %}
                                     </td>
                                     <td class="align-middle">
-                                        {% if clase.hora_llegada_profesor %}
-                                            {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                        {% if clase.hora_llegada_str %}
+                                            {{ clase.hora_llegada_str }}
                                         {% elif clase.profesor_suplente %}
                                             <span class="text-muted fst-italic">Suplente</span>
                                         {% elif clase.ausencia_profesor %}
@@ -1188,18 +1188,7 @@
         
         {% if clases_realizadas is defined and clases_realizadas %}
         {% for clase in clases_realizadas %}
-        clasesData.push([
-            "{{ clase.fecha.strftime('%d/%m/%Y') }}",
-            "{{ clase.horario.nombre }}",
-            {% if clase.horario.hora_inicio %}"{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}"
-            {% else %}"--:-- - --:--"{% endif %},
-            "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}",
-            {% if clase.profesor_suplente %}"Suplente"{% elif clase.ausencia_profesor %}"Cancelada"{% else %}"Normal"{% endif %},
-            {% if clase.hora_llegada_profesor %}"{{ clase.hora_llegada_profesor.strftime('%H:%M') }}"{% else %}"N/A"{% endif %},
-            {% if clase.hora_llegada_profesor %}"{{ clase.puntualidad }}"{% else %}"N/A"{% endif %},
-            "{{ clase.cantidad_alumnos }}",
-            "{{ clase.observaciones|default('') }}"
-        ]);
+        clasesData.push(getClaseData(clase));
         {% endfor %}
         {% else %}
         clasesData.push(["Sin datos", "", "", "", "", "", "", "", ""]);
@@ -1231,6 +1220,21 @@
         
         // Guardar archivo
         XLSX.writeFile(wb, "Informe_Mensual_{{ nombre_mes }}_{{ anio }}.xlsx");
+    }
+
+    /* Función para generar datos de clase para Excel */
+    function getClaseData(clase) {
+        return [
+            clase.fecha.strftime('%d/%m/%Y'),
+            clase.horario.nombre,
+            clase.horario.hora_inicio_str ? clase.horario.hora_inicio_str + " - " + clase.horario.hora_fin_str : "--:-- - --:--",
+            clase.profesor.nombre + " " + clase.profesor.apellido,
+            clase.profesor_suplente ? "Suplente" : (clase.ausencia_profesor ? "Cancelada" : "Normal"),
+            clase.hora_llegada_str ? clase.hora_llegada_str : "No registrada",
+            clase.puntualidad,
+            clase.cantidad_alumnos,
+            clase.observaciones || ""
+        ];
     }
 </script>
 {% endblock %} 
