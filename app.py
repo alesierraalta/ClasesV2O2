@@ -731,7 +731,7 @@ def registrar_asistencia(horario_id):
     # Obtener todos los profesores para el selector
     profesores = Profesor.query.all()
     
-    return render_template('asistencia/registrar.html', horario=horario, hoy=hoy, profesores=profesores)
+    return render_template('asistencia/registrar.html', horario=horario, hoy=hoy, fecha=hoy, profesores=profesores)
 
 @app.route('/asistencia/editar/<int:id>', methods=['GET', 'POST'])
 def editar_asistencia(id):
