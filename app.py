@@ -1053,12 +1053,37 @@ def informe_mensual():
     ORDER BY cr.fecha, hc.hora_inicio
     """
     
+    # Agregar debug para ver resultados
+    print(f"Consulta de clases para {primer_dia} a {ultimo_dia}")
+    
     # Crear una conexión fresca para asegurar que no hay caché
     connection = db.engine.connect()
     result_clases = connection.execute(sql_clases, {
         'fecha_inicio': primer_dia,
         'fecha_fin': ultimo_dia
     })
+    
+    # Función para convertir string a time
+    def convertir_a_time(hora_str):
+        if not hora_str:
+            return None
+                
+        # Si ya es un objeto time, devolverlo directamente
+        if isinstance(hora_str, time):
+            return hora_str
+                
+        # Intentar convertir string a time
+        try:
+            return datetime.strptime(hora_str, '%H:%M:%S.%f').time()
+        except ValueError:
+            try:
+                return datetime.strptime(hora_str, '%H:%M:%S').time()
+            except ValueError:
+                try:
+                    return datetime.strptime(hora_str, '%H:%M').time()
+                except ValueError:
+                    print(f"ERROR: No se pudo convertir {hora_str} a time")
+                    return None
     
     # Procesar los resultados y crear objetos para facilitar el manejo
     clases_realizadas = []
@@ -1078,26 +1103,20 @@ def informe_mensual():
         hora_llegada = row.hora_llegada_profesor
         if hora_llegada:
             if isinstance(hora_llegada, str):
-                try:
-                    hora_llegada = datetime.strptime(hora_llegada, '%H:%M:%S').time()
-                except ValueError:
-                    try:
-                        hora_llegada = datetime.strptime(hora_llegada, '%H:%M').time()
-                    except ValueError:
-                        hora_llegada = None
+                hora_llegada = convertir_a_time(hora_llegada)
         else:
             hora_llegada = None
 
         # Asegurarse de que hora_inicio sea un objeto time
         hora_inicio = row.hora_inicio
-        if isinstance(hora_inicio, str):
-            try:
-                hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
-            except ValueError:
-                try:
-                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
-                except ValueError:
-                    hora_inicio = None
+        print(f"DEBUG hora_inicio original: {hora_inicio}, tipo: {type(hora_inicio)}")
+        if hora_inicio:
+            if isinstance(hora_inicio, str):
+                hora_inicio = convertir_a_time(hora_inicio)
+                print(f"DEBUG hora_inicio convertida: {hora_inicio}")
+        else:
+            hora_inicio = None
+            print("DEBUG hora_inicio es None")
         
         # Obtener la duración o usar valor por defecto
         duracion = getattr(row, 'duracion', 60)
@@ -1109,8 +1128,15 @@ def informe_mensual():
         hora_para_puntualidad = hora_inicio
         
         # Formatear las horas como strings para la plantilla
-        hora_inicio_str = hora_inicio.strftime('%H:%M') if hora_inicio else "00:00"
-        hora_llegada_str = hora_llegada.strftime('%H:%M') if hora_llegada else None
+        if hora_inicio:
+            try:
+                hora_inicio_str = hora_inicio.strftime('%H:%M')
+                print(f"DEBUG hora_inicio_str: {hora_inicio_str}")
+            except:
+                print(f"ERROR formateando hora_inicio: {hora_inicio}, tipo: {type(hora_inicio)}")
+                hora_inicio_str = None
+        else:
+            hora_inicio_str = None
         
         # Crear un objeto para representar la clase realizada
         clase = {
@@ -1119,7 +1145,7 @@ def informe_mensual():
             'horario_id': row.horario_id,
             'profesor_id': row.profesor_id,
             'hora_llegada_profesor': hora_llegada,
-            'hora_llegada_str': hora_llegada_str,
+            'hora_llegada_str': hora_llegada.strftime('%H:%M') if hora_llegada else None,
             'cantidad_alumnos': row.cantidad_alumnos,
             'observaciones': row.observaciones,
             'audio_file': row.audio_file,
