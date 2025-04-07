@@ -1034,35 +1034,35 @@ def informe_mensual():
     
     # Esta parte se ejecuta tanto para POST como para GET con parámetros
     # Limpiar caché de la sesión
-    db.session.commit()
-    db.session.close()
-    db.session = db.create_scoped_session()
-    
-    # Consultar clases realizadas en el rango de fechas usando SQL directo
-    # para evitar problemas de caché
-    sql_clases = """
-    SELECT 
-        cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
+        db.session.commit()
+        db.session.close()
+        db.session = db.create_scoped_session()
+        
+        # Consultar clases realizadas en el rango de fechas usando SQL directo
+        # para evitar problemas de caché
+        sql_clases = """
+        SELECT 
+            cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
         cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
         hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
-        p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
-    FROM clase_realizada cr
-    JOIN horario_clase hc ON cr.horario_id = hc.id
-    JOIN profesor p ON cr.profesor_id = p.id
-    WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
-    ORDER BY cr.fecha, hc.hora_inicio
-    """
+            p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
+        FROM clase_realizada cr
+        JOIN horario_clase hc ON cr.horario_id = hc.id
+        JOIN profesor p ON cr.profesor_id = p.id
+        WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
+        ORDER BY cr.fecha, hc.hora_inicio
+        """
     
     # Agregar debug para ver resultados
     print(f"Consulta de clases para {primer_dia} a {ultimo_dia}")
-    
-    # Crear una conexión fresca para asegurar que no hay caché
-    connection = db.engine.connect()
-    result_clases = connection.execute(sql_clases, {
-        'fecha_inicio': primer_dia,
-        'fecha_fin': ultimo_dia
-    })
-    
+        
+        # Crear una conexión fresca para asegurar que no hay caché
+        connection = db.engine.connect()
+        result_clases = connection.execute(sql_clases, {
+            'fecha_inicio': primer_dia,
+            'fecha_fin': ultimo_dia
+        })
+        
     # Función para convertir string a time
     def convertir_a_time(hora_str):
         if not hora_str:
@@ -1075,10 +1075,10 @@ def informe_mensual():
         # Intentar convertir string a time
         try:
             return datetime.strptime(hora_str, '%H:%M:%S.%f').time()
-        except ValueError:
-            try:
-                return datetime.strptime(hora_str, '%H:%M:%S').time()
             except ValueError:
+                try:
+                return datetime.strptime(hora_str, '%H:%M:%S').time()
+                except ValueError:
                 try:
                     return datetime.strptime(hora_str, '%H:%M').time()
                 except ValueError:
@@ -1105,7 +1105,7 @@ def informe_mensual():
             if isinstance(hora_llegada, str):
                 hora_llegada = convertir_a_time(hora_llegada)
         else:
-            hora_llegada = None
+                    hora_llegada = None
 
         # Asegurarse de que hora_inicio sea un objeto time
         hora_inicio = row.hora_inicio
@@ -1117,7 +1117,7 @@ def informe_mensual():
         else:
             hora_inicio = None
             print("DEBUG hora_inicio es None")
-        
+                    
         # Obtener la duración o usar valor por defecto
         duracion = getattr(row, 'duracion', 60)
         
@@ -1200,10 +1200,21 @@ def informe_mensual():
                 except ValueError:
                     hora_inicio = None
         
+        # Si todavía es None, intentar con formato '%H:%M:%S.%f'
+        if hora_inicio is None and row.hora_inicio:
+            try:
+                hora_inicio = datetime.strptime(row.hora_inicio, '%H:%M:%S.%f').time()
+                print(f"DEBUG: Convertido hora_inicio con microsegundos: {hora_inicio}")
+            except ValueError:
+                print(f"ERROR: No se pudo convertir hora_inicio: {row.hora_inicio}")
+        
+        hora_inicio_str = hora_inicio.strftime('%H:%M') if hora_inicio else None
+        
         horario = {
             'id': row.id,
             'nombre': row.nombre,
             'hora_inicio': hora_inicio,
+            'hora_inicio_str': hora_inicio_str,
             'tipo_clase': row.tipo_clase,
             'dia_semana': row.dia_semana,
             'profesor_id': row.profesor_id,
@@ -3345,17 +3356,17 @@ def importar_db_completo():
                 flash('El archivo ZIP no contiene una base de datos válida', 'danger')
                 return redirect(url_for('configuracion_exportar'))
             
-            # Ruta al archivo de base de datos original
-            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gimnasio.db')
-            
-            # Crear una copia de seguridad antes de reemplazar
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_path = os.path.join(os.path.dirname(db_path), 'backups', f'gimnasio_antes_importar_{timestamp}.db')
-            os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-            
+        # Ruta al archivo de base de datos original
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gimnasio.db')
+        
+        # Crear una copia de seguridad antes de reemplazar
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = os.path.join(os.path.dirname(db_path), 'backups', f'gimnasio_antes_importar_{timestamp}.db')
+        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+        
             # Hacer copia de seguridad de la DB actual
-            shutil.copy2(db_path, backup_path)
-            
+        shutil.copy2(db_path, backup_path)
+        
             # Hacer copia de seguridad de los audios actuales
             audio_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'audios')
             audio_backup_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups', f'audios_backup_{timestamp}')
@@ -3368,8 +3379,8 @@ def importar_db_completo():
                         shutil.copy2(item_path, os.path.join(audio_backup_folder, item))
             
             # Cerrar la conexión actual a la base de datos
-            db.session.remove()
-            
+        db.session.remove()
+        
             # Reemplazar la base de datos
             shutil.copy2(db_file, db_path)
             
