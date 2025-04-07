@@ -314,7 +314,7 @@
                                                                 <td>{{ clase.horario.nombre }}</td>
                                                                 <td>
                                                                 {% if clase.horario.hora_inicio %}
-                                                                    {{ clase.horario.hora_inicio_str if clase.horario.hora_inicio_str else clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
+                                                                    {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
                                                                 {% else %}
                                                                     --:-- - --:--
                                                                 {% endif %}
@@ -441,7 +441,7 @@
                                     <td class="align-middle fw-medium">{{ clase.horario.nombre }}</td>
                                     <td class="align-middle">
                                     {% if clase.horario.hora_inicio %}
-                                        {{ clase.horario.hora_inicio_str if clase.horario.hora_inicio_str else clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
+                                        {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
                                     {% else %}
                                         --:-- - --:--
                                     {% endif %}
@@ -614,7 +614,13 @@
                                             <span class="badge bg-secondary">OTRO</span>
                                             {% endif %}
                                         </td>
-                                        <td class="align-middle">{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}</td>
+                                        <td class="align-middle">
+                                            {% if clase.horario.hora_inicio %}
+                                                {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
+                                            {% else %}
+                                                --:-- - --:--
+                                            {% endif %}
+                                        </td>
                                         <td class="align-middle">
                                             {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}
                                         </td>
@@ -1207,7 +1213,7 @@
             "{{ clase.fecha.strftime('%d/%m/%Y') }}",
             "{{ clase.horario.nombre }}",
             "{{ clase.tipo_clase }}",
-            "{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}",
+            {% if clase.horario.hora_inicio %}"{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}"{% else %}"--:-- - --:--"{% endif %},
             "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}"
         ]);
         {% endfor %}
