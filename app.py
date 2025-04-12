@@ -981,16 +981,21 @@ def clases_no_registradas():
     
     # Obtener todas las clases registradas en el período - USANDO CONSULTA FRESCA
     # Evitar usar ORM para asegurar que obtenemos los datos más recientes
-    sql = """
-    SELECT cr.id, cr.fecha, cr.horario_id, cr.profesor_id 
+    sql_clases = """
+    SELECT 
+        cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
+        cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
+        hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
+        p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
     FROM clase_realizada cr
     JOIN horario_clase hc ON cr.horario_id = hc.id
     JOIN profesor p ON cr.profesor_id = p.id
     WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
+    ORDER BY cr.fecha, hc.hora_inicio
     """
     # Crear una conexión fresca para asegurar que no hay caché
     connection = db.engine.connect()
-    result = connection.execute(sql, {
+    result = connection.execute(sql_clases, {
         'fecha_inicio': fecha_inicio, 
         'fecha_fin': fecha_fin
     })
@@ -1311,6 +1316,7 @@ def informe_mensual():
     JOIN horario_clase hc ON cr.horario_id = hc.id
     JOIN profesor p ON cr.profesor_id = p.id
     WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
+    ORDER BY cr.fecha, hc.hora_inicio
     """
     
     # Agregar debug para ver resultados
