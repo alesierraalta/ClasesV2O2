@@ -330,9 +330,9 @@
                                                                         <span class="badge bg-success">Impartida por titular</span>
                                                                     {% endif %}
                                                                 </td>
-                                                                <td>
-                                                                    {% if clase.hora_llegada_str %}
-                                                                        {{ clase.hora_llegada_str }}
+                                                                <td class="align-middle">
+                                                                    {% if clase.hora_llegada_profesor %}
+                                                                        {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
                                                                     {% elif clase.profesor_suplente %}
                                                                         <span class="text-muted fst-italic">Suplente</span>
                                                                     {% elif clase.ausencia_profesor %}
@@ -463,8 +463,8 @@
                                         {% endif %}
                                     </td>
                                     <td class="align-middle">
-                                        {% if clase.hora_llegada_str %}
-                                            {{ clase.hora_llegada_str }}
+                                        {% if clase.hora_llegada_profesor %}
+                                            {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
                                         {% elif clase.profesor_suplente %}
                                             <span class="text-muted fst-italic">Suplente</span>
                                         {% elif clase.ausencia_profesor %}
@@ -615,8 +615,8 @@
                                             {% endif %}
                                         </td>
                                         <td class="align-middle">
-                                            {% if clase.horario.hora_inicio_str %}
-                                                {{ clase.horario.hora_inicio_str }} - {{ clase.horario.hora_fin_str }}
+                                            {% if clase.horario.hora_inicio %}
+                                                {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
                                             {% else %}
                                                 --:-- - --:--
                                             {% endif %}
@@ -1213,11 +1213,7 @@
             "{{ clase.fecha.strftime('%d/%m/%Y') }}",
             "{{ clase.horario.nombre }}",
             "{{ clase.tipo_clase }}",
-            {% if clase.horario.hora_inicio_str %}
-                "{{ clase.horario.hora_inicio_str }} - {{ clase.horario.hora_fin_str }}",
-            {% else %}
-                "--:-- - --:--",
-            {% endif %},
+            {% if clase.horario.hora_inicio %}"{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}"{% else %}"--:-- - --:--"{% endif %},
             "{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}"
         ]);
         {% endfor %}
@@ -1240,7 +1236,7 @@
             clase.horario.hora_inicio_str ? clase.horario.hora_inicio_str + " - " + clase.horario.hora_fin_str : "--:-- - --:--",
             clase.profesor.nombre + " " + clase.profesor.apellido,
             clase.profesor_suplente ? "Suplente" : (clase.ausencia_profesor ? "Cancelada" : "Normal"),
-            clase.hora_llegada_str ? clase.hora_llegada_str : "No registrada",
+            clase.hora_llegada_profesor ? clase.hora_llegada_profesor.strftime('%H:%M') : "No registrada",
             clase.puntualidad,
             clase.cantidad_alumnos,
             clase.observaciones || ""

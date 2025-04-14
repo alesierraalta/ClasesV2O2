@@ -48,9 +48,7 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 # Inicializar la aplicación Flask
-app = Flask(__name__, static_folder='static', template_folder='templates')
-# Configurar Flask para aceptar URLs con o sin barra final
-app.url_map.strict_slashes = False
+app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tu-clave-secreta'
 csrf = CSRFProtect(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gimnasio.db')
@@ -222,7 +220,7 @@ TIPOS_CLASE = [
 ]
 
 class HorarioClase(db.Model):
-    # Clase para horarios semanales
+    """Representa una clase programada regularmente en un horario semanal"""
     __tablename__ = 'horario_clase'  # Explicitly define the table name
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -273,50 +271,17 @@ class ClaseRealizada(db.Model):
         if not self.hora_llegada_profesor:
             return "N/A"
         
-        # Usar la hora_inicio de la instancia si está disponible
-        hora_inicio_original = self.horario.hora_inicio
-        
-        # Log extensivo para depuración
-        print("="*50)
-        print(f"DEBUG PUNTUALIDAD para clase ID={self.id}, fecha={self.fecha}")
-        print(f"Horario ID={self.horario_id}, Nombre={self.horario.nombre}")
-        print(f"Hora llegada registrada: {self.hora_llegada_profesor}")
-        print(f"Hora programada original en DB: {hora_inicio_original}, tipo: {type(hora_inicio_original)}")
-        
-        # Convertir la hora de inicio usando nuestra función global
-        hora_inicio_referencia = convertir_hora_con_microsegundos(hora_inicio_original)
-        print(f"Hora programada convertida: {hora_inicio_referencia}")
-        
-        # CORRECCIÓN ESPECÍFICA PARA POWER BIKE
-        if "POWER BIKE" in self.horario.nombre:
-            # Para POWER BIKE, sabemos que la hora de inicio es 7:30
-            hora_inicio_referencia = time(hour=7, minute=30)
-            print(f"CORRECCIÓN: Clase POWER BIKE, usando hora fija 7:30 como hora de inicio")
-        
-        if not hora_inicio_referencia:
-            print("ERROR: Sin hora de inicio programada")
-            return "Error: Sin hora de inicio programada"
-        
-        # Calcular diferencia en minutos
         diferencia_minutos = (
             datetime.combine(date.min, self.hora_llegada_profesor) - 
-            datetime.combine(date.min, hora_inicio_referencia)
+            datetime.combine(date.min, self.horario.hora_inicio)
         ).total_seconds() / 60
         
-        print(f"Diferencia en minutos: {diferencia_minutos:.2f}")
-        
-        resultado = ""
         if diferencia_minutos <= 0:
-            resultado = "Puntual"
+            return "Puntual"
         elif diferencia_minutos <= 10:
-            resultado = "Retraso leve"
+            return "Retraso leve"
         else:
-            resultado = "Retraso significativo"
-        
-        print(f"Resultado puntualidad: {resultado}")
-        print("="*50)
-        
-        return resultado
+            return "Retraso significativo"
 
 # Rutas
 @app.route('/test')
@@ -763,7 +728,7 @@ def registrar_asistencia(horario_id):
     # Obtener todos los profesores para el selector
     profesores = Profesor.query.all()
     
-    return render_template('asistencia/registrar.html', horario=horario, hoy=hoy, fecha=hoy, profesores=profesores)
+    return render_template('asistencia/registrar.html', horario=horario, hoy=hoy, profesores=profesores)
 
 @app.route('/asistencia/editar/<int:id>', methods=['GET', 'POST'])
 def editar_asistencia(id):
@@ -891,82 +856,11 @@ def clases_no_registradas():
     if fecha_fin_str:
         fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
     
-    # 1. Obtener todos los horarios activos utilizando una consulta más completa y directa
-    sql_horarios = """
-        SELECT h.id, h.nombre, h.hora_inicio, h.tipo_clase, h.dia_semana, h.profesor_id, h.duracion 
-        FROM horario_clase h 
-        ORDER BY h.nombre
-    """
-    
-    result_horarios = db.session.execute(sql_horarios)
-    
-    horarios_activos = []
-    for row in result_horarios:
-        # Extraer la hora_inicio de la base de datos
-        hora_inicio_original = row.hora_inicio
-        
-        # Establecer valores predeterminados
-        hora_inicio = None
-        hora_inicio_str = None
-        
-        # Procesar hora_inicio según su tipo
-        if hora_inicio_original:
-            if isinstance(hora_inicio_original, time):
-                # Si es un objeto time, formatear directamente
-                hora_inicio = hora_inicio_original  # Mantener el objeto time para ordenar
-                hora_inicio_str = hora_inicio_original.strftime('%H:%M')
-            elif isinstance(hora_inicio_original, str):
-                # Si es una cadena, intentar extraer solo la parte HH:MM
-                if ':' in hora_inicio_original:
-                    partes = hora_inicio_original.split(':')
-                    if len(partes) >= 2:
-                        try:
-                            horas = int(partes[0])
-                            minutos = int(partes[1])
-                            # Crear objeto time para ordenamiento y cálculos
-                            hora_inicio = time(hour=horas, minute=minutos)
-                            hora_inicio_str = f"{horas:02d}:{minutos:02d}"
-                        except (ValueError, TypeError):
-                            # Si hay error, intentar convertir usando datetime
-                            try:
-                                dt = datetime.strptime(hora_inicio_original.split('.')[0], '%H:%M:%S')
-                                hora_inicio = dt.time()
-                                hora_inicio_str = dt.strftime('%H:%M')
-                            except:
-                                # Si no podemos convertir, usar valores predeterminados
-                                hora_inicio = time(hour=0, minute=0)  # 00:00 como fallback
-                                hora_inicio_str = "00:00"
-                else:
-                    # No contiene ":", usar valores predeterminados
-                    hora_inicio = time(hour=0, minute=0)
-                    hora_inicio_str = "00:00"
-            else:
-                # Si no hay hora_inicio, usar valores predeterminados
-                hora_inicio = time(hour=0, minute=0)
-                hora_inicio_str = "00:00"
-        
-        # Calcular la hora de finalización
-        duracion = getattr(row, 'duracion', 60)
-        hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
-        
-        # Crear el objeto horario con los datos procesados
-        horario = {
-            'id': row.id,
-            'nombre': row.nombre,
-            'hora_inicio': hora_inicio_str,  # ¡Importante! Guardar siempre el string formateado
-            'hora_inicio_obj': hora_inicio,  # Mantener el objeto time para ordenamiento
-            'tipo_clase': row.tipo_clase,
-            'dia_semana': row.dia_semana,
-            'profesor_id': row.profesor_id,
-            'duracion': duracion,
-            'hora_fin_str': hora_fin_str
-        }
-        
-        # Verificar si es clase POWER BIKE para depuración
-        if "POWER BIKE" in row.nombre:
-            print(f"DETECTADA CLASE POWER BIKE en horarios_activos: ID={row.id}, hora_inicio_str={hora_inicio_str}, hora_inicio_obj={hora_inicio}")
-            
-        horarios_activos.append(horario)
+    # 1. Obtener todos los horarios activos
+    horarios = HorarioClase.query
+    if profesor_id and profesor_id != 'todos':
+        horarios = horarios.filter_by(profesor_id=int(profesor_id))
+    horarios = horarios.all()
     
     # 2. Generar todas las fechas en el rango
     fechas = []
@@ -981,21 +875,14 @@ def clases_no_registradas():
     
     # Obtener todas las clases registradas en el período - USANDO CONSULTA FRESCA
     # Evitar usar ORM para asegurar que obtenemos los datos más recientes
-    sql_clases = """
-    SELECT 
-        cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
-        cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
-        hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
-        p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
-    FROM clase_realizada cr
-    JOIN horario_clase hc ON cr.horario_id = hc.id
-    JOIN profesor p ON cr.profesor_id = p.id
-    WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
-    ORDER BY cr.fecha, hc.hora_inicio
+    sql = """
+    SELECT id, fecha, horario_id, profesor_id 
+    FROM clase_realizada 
+    WHERE fecha >= :fecha_inicio AND fecha <= :fecha_fin
     """
     # Crear una conexión fresca para asegurar que no hay caché
     connection = db.engine.connect()
-    result = connection.execute(sql_clases, {
+    result = connection.execute(sql, {
         'fecha_inicio': fecha_inicio, 
         'fecha_fin': fecha_fin
     })
@@ -1003,107 +890,48 @@ def clases_no_registradas():
     # Procesar los resultados de la consulta directa
     clases_realizadas = []
     for row in result:
-        fecha_clase = row[1]
-        horario_id = row[2]
-        
-        # Verificar que fecha_clase sea un objeto date
-        if isinstance(fecha_clase, str):
-            try:
-                fecha_clase = datetime.strptime(fecha_clase, '%Y-%m-%d').date()
-            except ValueError:
-                try:
-                    fecha_clase = datetime.strptime(fecha_clase, '%d/%m/%Y').date()
-                except ValueError:
-                    # Si no podemos convertir, usar la fecha actual
-                    fecha_clase = datetime.now().date()
-        
-        # Guardar la clase realizada
         clases_realizadas.append({
             'id': row[0],
-            'fecha': fecha_clase,
-            'horario_id': horario_id,
+            'fecha': row[1],
+            'horario_id': row[2],
             'profesor_id': row[3]
         })
-        
         # Agregar al diccionario para búsqueda rápida
-        key = (fecha_clase, horario_id)
+        key = (row[1], row[2])  # fecha, horario_id
         clases_registradas_dict[key] = True
-        
-        # También añadir a clases_registradas_dict con fecha como string (YYYY-MM-DD)
-        # para manejar diferentes formatos de fecha en las comparaciones
-        key_str = (fecha_clase.strftime('%Y-%m-%d'), horario_id)
-        clases_registradas_dict[key_str] = True
-        
-        print(f"DEBUG: Clase registrada encontrada - Fecha: {fecha_clase}, Horario ID: {horario_id}, ID: {row[0]}")
+        print(f"DEBUG: Clase registrada encontrada - Fecha: {row[1]}, Horario ID: {row[2]}, ID: {row[0]}")
     
     # Cerrar la conexión después de usarla
     connection.close()
     
     # 4. Generar las clases esperadas que NO están registradas
     clases_no_registradas = []
-    for horario in horarios_activos:
+    for horario in horarios:
         for fecha in fechas:
-            # Verificar que fecha sea un objeto date
-            if not isinstance(fecha, date):
-                try:
-                    fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
-                except (ValueError, TypeError):
-                    continue  # Saltar esta fecha si no podemos convertirla
-            
             # Si el día de la semana coincide con el día del horario
-            if fecha.weekday() == horario['dia_semana']:
-                # Comprobar con múltiples formatos de clave para mayor seguridad
-                key = (fecha, horario['id'])
-                key_str = (fecha.strftime('%Y-%m-%d'), horario['id'])
-                
-                # Verificar si esta clase no está registrada usando ambas claves
-                if key not in clases_registradas_dict and key_str not in clases_registradas_dict:
-                    # Obtener información del profesor
-                    sql_profesor = "SELECT id, nombre, apellido FROM profesor WHERE id = :profesor_id"
-                    result_profesor = db.session.execute(sql_profesor, {'profesor_id': horario['profesor_id']}).fetchone()
-                    
-                    if result_profesor:
-                        profesor = {
-                            'id': result_profesor.id,
-                            'nombre': result_profesor.nombre,
-                            'apellido': result_profesor.apellido
-                        }
-                    else:
-                        profesor = {
-                            'id': 0,
-                            'nombre': 'Desconocido',
-                            'apellido': ''
-                        }
-                    
-                    # Asegurarse de que fecha sea un objeto datetime.date
-                    if not isinstance(fecha, date):
-                        try:
-                            fecha = datetime.strptime(fecha, '%Y-%m-%d').date()
-                        except (ValueError, TypeError):
-                            try:
-                                fecha = datetime.strptime(fecha, '%d/%m/%Y').date()
-                            except (ValueError, TypeError):
-                                fecha = datetime.now().date()
-                    
-                    # No es necesario procesar más el horario, ya viene con el formato correcto
-                    horario_formateado = horario.copy()
-                    
-                    # Creamos un objeto para representar la clase esperada
+            if fecha.weekday() == horario.dia_semana:
+                # Verificar si esta clase ya está registrada
+                key = (fecha, horario.id)
+                if key in clases_registradas_dict:
+                    print(f"DEBUG: Clase ya registrada (omitiendo) - Fecha: {fecha}, Horario ID: {horario.id}")
+                else:
+                    # Esta clase no está registrada, añadirla a la lista
                     clase_esperada = {
                         'fecha': fecha,
-                        'horario': horario_formateado,
-                        'profesor': profesor,
-                        'tipo_clase': horario['tipo_clase'],
-                        'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario['id']}"
+                        'horario': horario,
+                        'profesor': horario.profesor,
+                        'tipo_clase': horario.tipo_clase,
+                        'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario.id}"
                     }
                     clases_no_registradas.append(clase_esperada)
+                    print(f"DEBUG: Añadiendo clase no registrada - Fecha: {fecha}, Horario ID: {horario.id}")
     
     # Mensaje de depuración con el número de clases
     print(f"DEBUG: Total de clases registradas: {len(clases_realizadas)}")
     print(f"DEBUG: Total de clases no registradas: {len(clases_no_registradas)}")
     
     # Ordenar por fecha (más reciente primero) y luego por hora de inicio
-    clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].get('hora_inicio_obj', time(0, 0))))
+    clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].hora_inicio), reverse=True)
     
     profesores = Profesor.query.all()
     
@@ -1119,169 +947,77 @@ def clases_no_registradas():
 def informes():
     return render_template('informes/index.html')
 
-# Función para calcular la hora de finalización como string (definida globalmente)
-def calcular_hora_fin(hora_inicio, duracion=60):
-    if not hora_inicio:
-        return "N/A"
-    
-    if isinstance(hora_inicio, str):
-        try:
-            hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
-        except ValueError:
-            try:
-                hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
-            except ValueError:
-                return "N/A"
-    
-    minutos_totales = hora_inicio.hour * 60 + hora_inicio.minute + duracion
-    horas, minutos = divmod(minutos_totales, 60)
-    # Ajuste para asegurar que las horas estén en el formato de 24 horas (0-23)
-    horas = horas % 24
-    return f"{horas:02d}:{minutos:02d}"
-    
-def limpiar_formato_hora(hora_input):
-    """
-    Limpia y formatea cualquier tipo de entrada de hora al formato HH:MM.
-    Maneja objetos time, strings en varios formatos y casos especiales.
-    """
-    if hora_input is None:
-        return "N/A"
-    
-    # Caso 1: Es objeto time
-    if isinstance(hora_input, time):
-        return hora_input.strftime('%H:%M')
-    
-    # Caso 2: Es una cadena
-    if isinstance(hora_input, str):
-        if not hora_input:
-            return "N/A"
-        
-        # Eliminar cualquier parte de microsegundos
-        if '.' in hora_input:
-            hora_input = hora_input.split('.')[0]
-        
-        # Extraer solo horas y minutos si contiene colones
-        if ':' in hora_input:
-            partes = hora_input.split(':')
-            if len(partes) >= 2:
-                try:
-                    horas = int(partes[0])
-                    minutos = int(partes[1])
-                    return f"{horas:02d}:{minutos:02d}"
-                except (ValueError, TypeError):
-                    pass  # Si hay error, seguimos con otros métodos
-        
-        # Intentar interpretar como un formato de hora estándar
-        try:
-            parsed_time = datetime.strptime(hora_input, '%H:%M:%S').time()
-            return parsed_time.strftime('%H:%M')
-        except ValueError:
-            try:
-                parsed_time = datetime.strptime(hora_input, '%H:%M').time()
-                return parsed_time.strftime('%H:%M')
-            except ValueError:
-                pass  # Si hay error, seguimos con otros métodos
-    
-    # Caso 3: Es un tipo desconocido o no se pudo formatear
-    # Intentar convertir a string y luego hacer limpieza básica
-    try:
-        hora_str = str(hora_input)
-        if ':' in hora_str:
-            partes = hora_str.split(':')
-            if len(partes) >= 2:
-                return f"{int(partes[0]):02d}:{int(partes[1]):02d}"
-    except:
-        pass
-    
-    # Si nada funciona, devolvemos un valor predeterminado
-    return "00:00"
-
 @app.route('/informes/mensual', methods=['GET', 'POST'])
 def informe_mensual():
-    # Función para calcular la puntualidad
-    def calcular_puntualidad(hora_llegada, hora_inicio, nombre_clase=""):
-        if not hora_llegada:
-            return "N/A"
-        
-        # Si hora_inicio es None, no podemos calcular la puntualidad
-        if hora_inicio is None:
-            print("⚠️ ADVERTENCIA: hora_inicio es None, no se puede calcular puntualidad")
-            return "N/A"
-        
-        # Registrar en el log los tipos de datos
-        print("="*50)
-        print(f"DEBUG calcular_puntualidad en INFORME:")
-        print(f"Clase: {nombre_clase}")
-        print(f"Tipo de hora_llegada: {type(hora_llegada)}, valor: {hora_llegada}")
-        print(f"Tipo de hora_inicio: {type(hora_inicio)}, valor: {hora_inicio}")
-        
-        # CORRECCIÓN ESPECÍFICA PARA POWER BIKE
-        if nombre_clase and "POWER BIKE" in nombre_clase:
-            # Crear una nueva hora_inicio fija de 7:30
-            hora_correcta = time(hour=7, minute=30)
-            print(f"CORRECCIÓN POWER BIKE: Cambiando hora_inicio de {hora_inicio} a {hora_correcta}")
-            hora_inicio = hora_correcta
-        
-        # Convertir las horas usando nuestra función global
-        hora_llegada_convertida = convertir_hora_con_microsegundos(hora_llegada)
-        if not hora_llegada_convertida:
-            print("⚠️ ERROR: No se pudo convertir hora_llegada")
-            return "Error formato"
-        
-        hora_inicio_convertida = convertir_hora_con_microsegundos(hora_inicio)
-        if not hora_inicio_convertida:
-            print("⚠️ ERROR: No se pudo convertir hora_inicio")
-            return "Error formato"
-        
-        # Usar las horas convertidas
-        hora_llegada = hora_llegada_convertida
-        hora_inicio = hora_inicio_convertida
-        
-        # Calcular minutos de retraso (asegurando que ambos son objetos time)
-        print(f"⏰ Comparando: hora_llegada={hora_llegada} vs hora_inicio={hora_inicio}")
-        
-        # SOSPECHA: Si representan el mismo tiempo, puede haber un problema aquí
-        if hora_llegada == hora_inicio:
-            print("⚠️ ALERTA: hora_llegada y hora_inicio son EXACTAMENTE IGUALES")
-            print("   Esto podría indicar que se está usando la misma hora para ambos")
-        
-        # Corregir la comparación: el profesor es puntual solo si llega a tiempo o antes
-        if hora_llegada <= hora_inicio:
-            diferencia = (
-                datetime.combine(date.min, hora_inicio) - 
-                datetime.combine(date.min, hora_llegada)
-            ).total_seconds() / 60
-            print(f"✅ PUNTUAL! Llegó {diferencia:.2f} minutos antes")
-            print("="*50)
-            return "Puntual"
-        
-        # Calcular minutos de retraso
-        diferencia_minutos = (
-            datetime.combine(date.min, hora_llegada) - 
-            datetime.combine(date.min, hora_inicio)
-        ).total_seconds() / 60
-        
-        print(f"⏱ Diferencia en minutos: {diferencia_minutos:.2f}")
-        
-        resultado = ""
-        if diferencia_minutos <= 10:
-            resultado = "Retraso leve"
-        else:
-            resultado = "Retraso significativo"
-            
-        print(f"Resultado: {resultado}")
-        print("="*50)
-        
-        return resultado
-
     # Para peticiones GET con parámetros
-    if request.method == 'GET' and request.args.get('mes') and request.args.get('anio'):
+    if request.method == 'GET' and 'mes' in request.args and 'anio' in request.args:
         mes = int(request.args.get('mes'))
         anio = int(request.args.get('anio'))
+        
+        # Crear un archivo de log para este informe específico
+        log_filename = f"informe_debug_{anio}_{mes}.log"
+        with open(log_filename, "w") as log_file:
+            log_file.write(f"=== INICIO DEBUG INFORME {anio}-{mes} ===\n")
+        
+        def debug_log(message):
+            with open(log_filename, "a") as log_file:
+                log_file.write(f"{message}\n")
+        
+        debug_log(f"Generando informe para mes={mes}, anio={anio}")
         
         # Obtener el primer y último día del mes
         primer_dia = date(anio, mes, 1)
         ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
+        
+        # Mensaje de depuración
+        timestamp_actual = int(time_module.time())
+        print(f"DEBUG: Ejecutando informe_mensual para {mes}/{anio} con timestamp: {timestamp_actual}")
+        debug_log(f"Rango de fechas: {primer_dia} hasta {ultimo_dia}")
+        
+        # Forzar sincronización de la base de datos y limpiar caché
+        db.session.commit()
+        db.session.close()
+        db.session = db.create_scoped_session()
+        db.session.expire_all()
+        
+        # Consultar clases realizadas en el rango de fechas usando SQL directo
+        # para evitar problemas de caché
+        sql_clases = """
+        SELECT 
+            cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
+            cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
+            hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
+            p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
+        FROM clase_realizada cr
+        JOIN horario_clase hc ON cr.horario_id = hc.id
+        JOIN profesor p ON cr.profesor_id = p.id
+        WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
+        ORDER BY cr.fecha, hc.hora_inicio
+        """
+        
+        debug_log(f"SQL a ejecutar: {sql_clases}")
+        debug_log(f"Parámetros: fecha_inicio={primer_dia}, fecha_fin={ultimo_dia}")
+        
+        # Crear una conexión fresca para asegurar que no hay caché
+        connection = db.engine.connect()
+        result_clases = connection.execute(sql_clases, {
+            'fecha_inicio': primer_dia,
+            'fecha_fin': ultimo_dia
+        })
+        
+        # Verificar si hay registros en la consulta
+        debug_log("Verificando si hay resultados en la consulta...")
+        primer_registro = result_clases.fetchone()
+        if primer_registro:
+            debug_log(f"Primer registro encontrado: id={primer_registro.id}, fecha={primer_registro.fecha}")
+            debug_log(f"hora_llegada_profesor={primer_registro.hora_llegada_profesor}, tipo={type(primer_registro.hora_llegada_profesor)}")
+            # Reiniciar el cursor para procesar todos los registros
+            result_clases = connection.execute(sql_clases, {
+                'fecha_inicio': primer_dia,
+                'fecha_fin': ultimo_dia
+            })
+        else:
+            debug_log("No se encontraron registros en la consulta")
         
     elif request.method == 'POST':
         mes = int(request.form['mes'])
@@ -1304,52 +1040,41 @@ def informe_mensual():
     db.session.close()
     db.session = db.create_scoped_session()
     
-    # Consultar clases realizadas en el rango de fechas usando SQL directo
-    # para evitar problemas de caché
-    sql_clases = """
-    SELECT 
-        cr.id, cr.fecha, cr.horario_id, cr.profesor_id, cr.hora_llegada_profesor, 
-        cr.cantidad_alumnos, cr.observaciones, cr.audio_file, cr.fecha_registro,
-        hc.nombre, hc.hora_inicio, hc.tipo_clase, hc.duracion,
-        p.nombre as profesor_nombre, p.apellido as profesor_apellido, p.tarifa_por_clase
-    FROM clase_realizada cr
-    JOIN horario_clase hc ON cr.horario_id = hc.id
-    JOIN profesor p ON cr.profesor_id = p.id
-    WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
-    ORDER BY cr.fecha, hc.hora_inicio
-    """
-    
-    # Agregar debug para ver resultados
-    print(f"Consulta de clases para {primer_dia} a {ultimo_dia}")
-    
-    # Crear una conexión fresca para asegurar que no hay caché
-    connection = db.engine.connect()
-    result_clases = connection.execute(sql_clases, {
-        'fecha_inicio': primer_dia,
-        'fecha_fin': ultimo_dia
-    })
-    
-    # Función para convertir string a time
-    def convertir_a_time(hora_str):
-        if not hora_str:
-            return None
-                
-        # Si ya es un objeto time, devolverlo directamente
-        if isinstance(hora_str, time):
-            return hora_str
-                
-        # Intentar convertir string a time
-        try:
-            return datetime.strptime(hora_str, '%H:%M:%S.%f').time()
-        except ValueError:
+    # Función para calcular la hora de finalización como string
+    def calcular_hora_fin(hora_inicio, duracion=60):
+        if not hora_inicio:
+            return "00:00"
+        
+        if isinstance(hora_inicio, str):
             try:
-                return datetime.strptime(hora_str, '%H:%M:%S').time()
+                hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
             except ValueError:
                 try:
-                    return datetime.strptime(hora_str, '%H:%M').time()
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
                 except ValueError:
-                    print(f"ERROR: No se pudo convertir {hora_str} a time")
-                    return None
+                    return "00:00"
+        
+        minutos_totales = hora_inicio.hour * 60 + hora_inicio.minute + duracion
+        horas, minutos = divmod(minutos_totales, 60)
+        return f"{horas:02d}:{minutos:02d}"
+    
+    # Función para calcular la puntualidad
+    def calcular_puntualidad(hora_llegada, hora_inicio):
+        if not hora_llegada:
+            return "N/A"
+        
+        if hora_llegada <= hora_inicio:
+            return "Puntual"
+        
+        diferencia_minutos = (
+            datetime.combine(date.min, hora_llegada) - 
+            datetime.combine(date.min, hora_inicio)
+        ).total_seconds() / 60
+        
+        if diferencia_minutos <= 10:
+            return "Retraso leve"
+        else:
+            return "Retraso significativo"
     
     # Procesar los resultados y crear objetos para facilitar el manejo
     clases_realizadas = []
@@ -1367,117 +1092,74 @@ def informe_mensual():
 
         # Asegurarse de que hora_llegada_profesor sea un objeto time
         hora_llegada = row.hora_llegada_profesor
-        if hora_llegada:
-            if isinstance(hora_llegada, str):
-                hora_llegada = convertir_a_time(hora_llegada)
-        else:
-            hora_llegada = None
-
-        # Obtener hora_inicio conservando el valor original cuando está disponible
-        hora_inicio_original = row.hora_inicio
-        hora_inicio = None
-        
-        # Verificar la hora de llegada para situaciones especiales
-        hora_llegada_str = None
-        if hora_llegada:
+        debug_log(f"DEBUG clase {row.id} - hora_llegada: {hora_llegada}, tipo: {type(hora_llegada)}")
+        if hora_llegada and isinstance(hora_llegada, str):
             try:
-                hora_llegada_str = hora_llegada.strftime('%H:%M')
-            except:
-                print(f"ERROR al formatear hora_llegada: {hora_llegada}")
-        
-        # Procesar la hora de inicio para comparaciones de puntualidad
-        if hora_inicio_original:
-            # Usar nuestra función global para convertir
-            hora_inicio = convertir_hora_con_microsegundos(hora_inicio_original)
-            if hora_inicio:
-                print(f"DEBUG informe_mensual: Clase ID {row.id}, convertida hora_inicio_original={hora_inicio_original} a {hora_inicio}")
-            else:
-                print(f"ADVERTENCIA: Clase ID {row.id} tiene hora_inicio en formato inválido: {hora_inicio_original}")
-        else:
-            print(f"ADVERTENCIA: Clase ID {row.id} no tiene hora_inicio definida en horario")
-            # Si tenemos la hora de llegada, NO la usamos como hora de inicio para puntualidad
-            # Esta es la causa del problema: la hora de llegada no debe ser la referencia para
-            # calcular la puntualidad
-            
-            # CORRECCIÓN ESPECÍFICA PARA POWER BIKE
-            nombre_horario = row.nombre if hasattr(row, 'nombre') else "Sin nombre"
-            if "POWER BIKE" in nombre_horario:
-                # Para POWER BIKE, sabemos que la hora de inicio es 7:30
-                hora_inicio = time(hour=7, minute=30)
-                print(f"CORRECCIÓN: Clase POWER BIKE, usando hora fija 7:30 como hora de inicio")
-            else:
-                # Intentamos extraer la hora del nombre del horario
-                import re
-                hora_match = re.search(r'(\d{1,2})[:.:](\d{2})', nombre_horario)
-                if hora_match:
-                    hora, minuto = map(int, hora_match.groups())
-                    hora_inicio = time(hour=hora, minute=minuto)
-                    print(f"Hora extraída del nombre: {hora_inicio}")
+                # Intentar con formato que incluye microsegundos (HH:MM:SS.SSSSSS)
+                if '.' in hora_llegada:
+                    # Extraer solo la parte de la hora sin microsegundos
+                    hora_sin_micro = hora_llegada.split('.')[0]
+                    hora_llegada = datetime.strptime(hora_sin_micro, '%H:%M:%S').time()
+                    debug_log(f"Hora convertida sin microsegundos: {hora_llegada}")
                 else:
-                    # Si no se puede extraer, dejamos la hora_inicio como None para mostrar un error claro
-                    print(f"ADVERTENCIA: No se pudo determinar la hora de inicio para '{nombre_horario}'")
-                    hora_inicio = time(hour=0, minute=0)  # Usar 00:00 como valor por defecto
+                    # Intentar formatos estándar
+                    try:
+                        hora_llegada = datetime.strptime(hora_llegada, '%H:%M:%S').time()
+                    except ValueError:
+                        try:
+                            hora_llegada = datetime.strptime(hora_llegada, '%H:%M').time()
+                        except ValueError:
+                            hora_llegada = None
+            except Exception as e:
+                debug_log(f"Error al convertir hora: {str(e)}")
+                hora_llegada = None
 
+        # Asegurarse de que hora_inicio sea un objeto time
+        hora_inicio = row.hora_inicio
+        if isinstance(hora_inicio, str):
+            try:
+                hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+            except ValueError:
+                try:
+                    hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+                except ValueError:
+                    hora_inicio = datetime.now().time()
+        
+        # Procesar hora_inicio de la clase realizada
+        clase_hora_inicio = getattr(row, 'clase_hora_inicio', None)
+        if clase_hora_inicio and isinstance(clase_hora_inicio, str):
+            try:
+                clase_hora_inicio = datetime.strptime(clase_hora_inicio, '%H:%M:%S').time()
+            except ValueError:
+                try:
+                    clase_hora_inicio = datetime.strptime(clase_hora_inicio, '%H:%M').time()
+                except ValueError:
+                    clase_hora_inicio = None
+        
         # Obtener la duración o usar valor por defecto
         duracion = getattr(row, 'duracion', 60)
         
         # Calcular la hora de finalización como string
-        if hora_inicio:
-            hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
-            # Formatear hora_inicio como string para la plantilla
-            try:
-                hora_inicio_str = hora_inicio.strftime('%H:%M')
-                print(f"DEBUG hora_inicio_str: {hora_inicio_str}")
-            except:
-                print(f"ERROR formateando hora_inicio: {hora_inicio}, tipo: {type(hora_inicio)}")
-                hora_inicio_str = None
-        else:
-            # Si llegamos aquí y no tenemos hora_inicio, intentamos usar directamente el valor original
-            # en los casos en que sea un string ya formateado
-            if isinstance(hora_inicio_original, str) and (':' in hora_inicio_original):
-                hora_inicio_str = hora_inicio_original
-                # Calcular hora_fin manualmente
-                try:
-                    hora, minuto = map(int, hora_inicio_str.split(':')[:2])
-                    minutos_totales = hora * 60 + minuto + duracion
-                    horas_fin, minutos_fin = divmod(minutos_totales, 60)
-                    hora_fin_str = f"{horas_fin:02d}:{minutos_fin:02d}"
-                except:
-                    print(f"ERROR calculando hora_fin a partir de string: {hora_inicio_original}")
-                    hora_fin_str = "Horario no disponible"
-            else:
-                hora_inicio_str = None
-                hora_fin_str = "Horario no disponible"
-
-        # Para la puntualidad usamos la hora del horario original
-        hora_para_puntualidad = hora_inicio
+        hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
         
-        # IMPORTANTE: Verificar que la hora para puntualidad no sea la misma que la hora de llegada
-        if hora_llegada and hora_para_puntualidad and hora_llegada == hora_para_puntualidad:
-            print(f"⚠️ ADVERTENCIA: hora_llegada y hora_para_puntualidad son IGUALES para clase ID {row.id}")
-            print(f"Esto podría indicar un problema en cómo se calculó la hora de inicio")
+        # Calcular puntualidad
+        estado_puntualidad = calcular_puntualidad(hora_llegada, hora_inicio)
         
-        # Registrar en el log para depuración la comparación de puntualidad
-        if hora_llegada and hora_para_puntualidad:
-            print(f"DEBUG puntualidad informe: Clase ID {row.id}, hora_llegada={hora_llegada}, hora_para_puntualidad={hora_para_puntualidad}")
-            diferencia = (datetime.combine(date.min, hora_llegada) - datetime.combine(date.min, hora_para_puntualidad)).total_seconds() / 60
-            print(f"DEBUG puntualidad informe: Diferencia en minutos={diferencia}, resultado={calcular_puntualidad(hora_llegada, hora_para_puntualidad, row.nombre)}")
-
         # Crear un objeto para representar la clase realizada
         clase = {
             'id': row.id,
             'fecha': fecha,
             'horario_id': row.horario_id,
+            'profesor_id': row.profesor_id,
             'hora_llegada_profesor': hora_llegada,
-            'hora_llegada_str': hora_llegada_str,
             'cantidad_alumnos': row.cantidad_alumnos,
             'observaciones': row.observaciones,
-            'fecha_registro': row.fecha_registro,
+            'audio_file': row.audio_file,
+            'hora_inicio': clase_hora_inicio or hora_inicio,  # Usar hora_inicio de clase_realizada si existe, o del horario como respaldo
             'horario': {
                 'id': row.horario_id,
                 'nombre': row.nombre,
                 'hora_inicio': hora_inicio,
-                'hora_inicio_str': hora_inicio_str,
                 'tipo_clase': row.tipo_clase,
                 'duracion': duracion,
                 'hora_fin_str': hora_fin_str
@@ -1487,23 +1169,65 @@ def informe_mensual():
                 'nombre': row.profesor_nombre,
                 'apellido': row.profesor_apellido,
                 'tarifa_por_clase': row.tarifa_por_clase
-            }
+            },
+            'puntualidad': estado_puntualidad
         }
-        
-        # Para POWER BIKE, establecemos la hora específica antes de calcular la puntualidad
-        if "POWER BIKE" in row.nombre:
-            print(f"CORRIGIENDO CLASE POWER BIKE para informe: ID={row.id}, hora_llegada={hora_llegada_str}")
-            hora_correcta = time(hour=7, minute=30)
-            clase['horario']['hora_inicio'] = hora_correcta
-            clase['horario']['hora_inicio_str'] = "07:30"
-            # Actualizar hora para puntualidad también
-            hora_para_puntualidad = hora_correcta
-            print(f"Hora corregida para POWER BIKE: {hora_correcta}")
-        
-        # Calcular la puntualidad después de las correcciones
-        clase['puntualidad'] = calcular_puntualidad(hora_llegada, hora_para_puntualidad, row.nombre)
-        
+        debug_log(f"DEBUG clase {row.id}: hora_llegada_profesor={hora_llegada}, puntualidad={estado_puntualidad}")
         clases_realizadas.append(clase)
+    
+    # Antes de renderizar la plantilla, verificar algunas clases para diagnosticar
+    if clases_realizadas:
+        for idx, clase in enumerate(clases_realizadas[:3]):  # Verificar solo las primeras 3 clases
+            debug_log(f"DEBUG pre-render clase {idx+1}: id={clase['id']}, fecha={clase['fecha']}, hora_llegada={clase['hora_llegada_profesor']}, puntualidad={clase['puntualidad']}")
+    
+    debug_log("=== FIN DEBUG INFORME ===")
+    
+    # Obtener todos los horarios activos
+    sql_horarios = "SELECT id, nombre, hora_inicio, tipo_clase, dia_semana, profesor_id, duracion FROM horario_clase"
+    result_horarios = db.session.execute(sql_horarios)
+    
+    horarios_activos = []
+    for row in result_horarios:
+        # Asegurarse de que hora_inicio sea un objeto time
+        hora_inicio = row.hora_inicio
+        debug_log(f"DEBUG horario {row.id} formato original: hora_inicio={hora_inicio}, tipo={type(hora_inicio)}")
+        if isinstance(hora_inicio, str):
+            try:
+                # Manejar formato con microsegundos
+                if '.' in hora_inicio:
+                    hora_sin_micro = hora_inicio.split('.')[0]
+                    hora_inicio = datetime.strptime(hora_sin_micro, '%H:%M:%S').time()
+                    debug_log(f"DEBUG horario {row.id} convertido sin microsegundos: {hora_inicio}")
+                else:
+                    # Intentar formatos estándar
+                    try:
+                        hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+                    except ValueError:
+                        try:
+                            hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+                        except ValueError:
+                            hora_inicio = datetime.now().time()
+            except Exception as e:
+                debug_log(f"Error al convertir hora para horario {row.id}: {str(e)}")
+                hora_inicio = datetime.now().time()
+                    
+        # Obtener la duración o usar valor por defecto
+        duracion = getattr(row, 'duracion', 60)
+        
+        # Calcular la hora de finalización como string
+        hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
+        
+        horario = {
+            'id': row.id,
+            'nombre': row.nombre,
+            'hora_inicio': hora_inicio,
+            'tipo_clase': row.tipo_clase,
+            'dia_semana': row.dia_semana,
+            'profesor_id': row.profesor_id,
+            'duracion': duracion,
+            'hora_fin_str': hora_fin_str
+        }
+        horarios_activos.append(horario)
     
     # Generar fechas para el mes seleccionado
     fechas_mes = []
@@ -1518,79 +1242,6 @@ def informe_mensual():
     for clase in clases_realizadas:
         key = (clase['fecha'], clase['horario_id'])
         clases_registradas_dict[key] = True
-    
-    # Obtener todos los horarios activos
-    # Obtener todos los horarios activos
-    sql_horarios = "SELECT id, nombre, hora_inicio, tipo_clase, dia_semana, profesor_id, duracion FROM horario_clase"
-    result_horarios = db.session.execute(sql_horarios)
-    
-    horarios_activos = []
-    for row in result_horarios:
-        # Extraer la hora_inicio de la base de datos
-        hora_inicio_original = row.hora_inicio
-        
-        # Establecer valores predeterminados
-        hora_inicio = None
-        hora_inicio_str = None
-        
-        # Procesar hora_inicio según su tipo
-        if hora_inicio_original:
-            if isinstance(hora_inicio_original, time):
-                # Si es un objeto time, formatear directamente
-                hora_inicio = hora_inicio_original  # Mantener el objeto time para ordenar
-                hora_inicio_str = hora_inicio_original.strftime('%H:%M')
-            elif isinstance(hora_inicio_original, str):
-                # Si es una cadena, intentar extraer solo la parte HH:MM
-                if ':' in hora_inicio_original:
-                    partes = hora_inicio_original.split(':')
-                    if len(partes) >= 2:
-                        try:
-                            horas = int(partes[0])
-                            minutos = int(partes[1])
-                            # Crear objeto time para ordenamiento y cálculos
-                            hora_inicio = time(hour=horas, minute=minutos)
-                            hora_inicio_str = f"{horas:02d}:{minutos:02d}"
-                        except (ValueError, TypeError):
-                            # Si hay error, intentar convertir usando datetime
-                            try:
-                                dt = datetime.strptime(hora_inicio_original.split('.')[0], '%H:%M:%S')
-                                hora_inicio = dt.time()
-                                hora_inicio_str = dt.strftime('%H:%M')
-                            except:
-                                # Si no podemos convertir, usar valores predeterminados
-                                hora_inicio = time(hour=0, minute=0)  # 00:00 como fallback
-                                hora_inicio_str = "00:00"
-                else:
-                    # No contiene ":", usar valores predeterminados
-                    hora_inicio = time(hour=0, minute=0)
-                    hora_inicio_str = "00:00"
-            else:
-                # Si no hay hora_inicio, usar valores predeterminados
-                hora_inicio = time(hour=0, minute=0)
-                hora_inicio_str = "00:00"
-        
-        # Calcular la hora de finalización
-        duracion = getattr(row, 'duracion', 60)
-        hora_fin_str = calcular_hora_fin(hora_inicio, duracion)
-        
-        # Crear el objeto horario con los datos procesados
-        horario = {
-            'id': row.id,
-            'nombre': row.nombre,
-            'hora_inicio': hora_inicio_str,  # ¡Importante! Guardar siempre el string formateado
-            'hora_inicio_obj': hora_inicio,  # Mantener el objeto time para ordenamiento
-            'tipo_clase': row.tipo_clase,
-            'dia_semana': row.dia_semana,
-            'profesor_id': row.profesor_id,
-            'duracion': duracion,
-            'hora_fin_str': hora_fin_str
-        }
-        
-        # Verificar si es clase POWER BIKE para depuración
-        if "POWER BIKE" in row.nombre:
-            print(f"DETECTADA CLASE POWER BIKE en horarios_activos: ID={row.id}, hora_inicio_str={hora_inicio_str}, hora_inicio_obj={hora_inicio}")
-            
-        horarios_activos.append(horario)
     
     # Generar las clases que deberían haberse realizado pero no están registradas
     clases_no_registradas = []
@@ -1628,28 +1279,25 @@ def informe_mensual():
                             except (ValueError, TypeError):
                                 fecha = datetime.now().date()
                     
-                    # No es necesario procesar más el horario, ya viene con el formato correcto
-                    horario_formateado = horario.copy()
-                    
                     # Creamos un objeto para representar la clase esperada
                     clase_esperada = {
                         'fecha': fecha,
-                        'horario': horario_formateado,
+                        'horario': horario,
                         'profesor': profesor,
                         'tipo_clase': horario['tipo_clase'],
                         'id_combinado': f"{fecha.strftime('%Y-%m-%d')}|{horario['id']}"
                     }
+                    debug_log(f"DEBUG clase no registrada: fecha={fecha}, horario_id={horario['id']}, profesor={profesor['nombre']} {profesor['apellido']}, tipo_clase={horario['tipo_clase']}")
+                    debug_log(f"DEBUG horario.hora_inicio={horario['hora_inicio']}, hora_fin_str={horario['hora_fin_str']}")
                     clases_no_registradas.append(clase_esperada)
     
     # Ordenar las clases no registradas por fecha
-    clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario'].get('hora_inicio_obj', time(0, 0))))
+    clases_no_registradas.sort(key=lambda x: (x['fecha'], x['horario']['hora_inicio']))
     
-    # SOLUCIÓN ROBUSTA: Procesamiento completo de todas las horas para eliminar formatos con microsegundos
-    for clase in clases_no_registradas:
-        # Asegurarnos de que los datos horarios estén correctamente formateados
-        if not clase['horario'].get('hora_inicio'):
-            # Usar hora_inicio_str o valor por defecto 
-            clase['horario']['hora_inicio'] = clase['horario'].get('hora_inicio_str', '00:00')
+    # Verificar algunas clases no registradas para diagnosticar
+    if clases_no_registradas:
+        for idx, clase in enumerate(clases_no_registradas[:3]):  # Verificar solo las primeras 3 clases
+            debug_log(f"DEBUG pre-render clase no registrada {idx+1}: fecha={clase['fecha']}, horario={clase['horario']['nombre']}, tipo={clase['tipo_clase']}, hora_inicio={clase['horario']['hora_inicio']}")
     
     # Inicializar variables para totales
     total_clases = {'value': 0}
@@ -1707,11 +1355,7 @@ def informe_mensual():
         resumen_profesores[profesor['id']]['clases_por_tipo'][tipo_clase] += 1
         resumen_profesores[profesor['id']]['alumnos_por_tipo'][tipo_clase] += clase['cantidad_alumnos']
         
-        # Determinar la hora a considerar para la puntualidad (la de la clase si está disponible, sino la del horario)
-        hora_para_puntualidad = clase['horario']['hora_inicio']
-        
-        # Verificar si hubo retraso
-        if clase['hora_llegada_profesor'] and hora_para_puntualidad and clase['hora_llegada_profesor'] > hora_para_puntualidad:
+        if clase['hora_llegada_profesor'] and clase['hora_llegada_profesor'] > clase['horario']['hora_inicio']:
             resumen_profesores[profesor['id']]['total_retrasos'] += 1
         
         # Si el profesor asistió (tiene hora de llegada) pero no hay alumnos, se paga la mitad
@@ -2051,7 +1695,7 @@ def importar_asistencia():
                             raise ValueError("El nombre de la clase está vacío")
                         
                         # No need to search for a Clase model (it doesn't exist)
-                        # We'll use the nombre directamente para HorarioClase
+                        # We'll use the nombre directly for HorarioClase
                         
                         # Get number of students
                         try:
@@ -3208,80 +2852,42 @@ def get_audio_storage_path(horario_id, filename=None):
 def registrar_asistencia_fecha(fecha, horario_id):
     """Registrar asistencia para una fecha específica y horario"""
     try:
-        # Convertir la fecha del parámetro URL a un objeto date
         fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
         hoy = datetime.now().date()
-        
-        # Depuración inicial para mostrar claramente la fecha de la clase vs la fecha actual
-        print("="*50)
-        print(f"REGISTRO DE ASISTENCIA: fecha_clase={fecha_obj.strftime('%d/%m/%Y')}, fecha_actual={hoy.strftime('%d/%m/%Y')}")
-        print(f"¿Se está registrando una clase con fecha diferente a hoy? {'SÍ' if fecha_obj != hoy else 'NO'}")
-        print(f"Diferencia de días: {(hoy - fecha_obj).days} días")
-        print("="*50)
+        print(f"DEBUG: Registrando asistencia para FECHA REAL: {fecha_obj} (parámetro recibido: {fecha})")
+        print(f"DEBUG: La fecha actual es: {hoy}")
     except ValueError:
-        flash('Formato de fecha inválido. Use YYYY-MM-DD', 'danger')
+        flash('Formato de fecha inválido', 'danger')
         return redirect(url_for('control_asistencia'))
     
-    # Obtener información del horario
+    print(f"DEBUG: Registrando asistencia para fecha {fecha_obj} y horario {horario_id}")
+    
     horario = HorarioClase.query.get_or_404(horario_id)
     if not horario:
         flash(f'No se encontró el horario con ID {horario_id}', 'danger')
         return redirect(url_for('clases_no_registradas'))
-        
-    # Depuración del horario encontrado
-    print(f"HORARIO: ID={horario.id}, Nombre={horario.nombre}, Hora inicio={horario.hora_inicio}")
     
-    # Verificar si ya existe un registro para esta fecha y horario usando el ORM
-    registro_existente = ClaseRealizada.query.filter_by(
-        fecha=fecha_obj,
-        horario_id=horario_id
-    ).first()
+    # Verificar si la clase ya está registrada para la fecha específica - USAR SQL DIRECTO
+    fecha_str = fecha_obj.strftime('%Y-%m-%d')
+    sql = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+    result = db.session.execute(sql, {'fecha': fecha_str, 'horario_id': horario_id}).fetchone()
     
-    if registro_existente:
-        print(f"AVISO: Ya existe un registro para esta clase el {fecha_obj.strftime('%d/%m/%Y')}, ID={registro_existente.id}")
-        flash(f'Ya existe un registro para esta clase el {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
-        return redirect(url_for('editar_asistencia', id=registro_existente.id))
+    if result:
+        clase_existente_id = result[0]
+        print(f"DEBUG: Ya existe una clase registrada con ID {clase_existente_id} para fecha {fecha_obj} (fecha_str={fecha_str}) y horario {horario_id}")
+        flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
+        return redirect(url_for('editar_asistencia', id=clase_existente_id))
     
-    # También comprobar si hay un registro para hoy (para evitar confusiones)
-    if fecha_obj != hoy:
-        registro_hoy = ClaseRealizada.query.filter_by(
-            fecha=hoy,
-            horario_id=horario_id
-        ).first()
-        
-        if registro_hoy:
-            print(f"AVISO: Existe un registro para la FECHA ACTUAL ({hoy.strftime('%d/%m/%Y')}), ID={registro_hoy.id}")
-            flash(f'Atención: Ya existe un registro para esta clase en la fecha actual ({hoy.strftime("%d/%m/%Y")})', 'info')
+    # Verificar si la clase ya está registrada para la fecha actual (para evitar confusiones)
+    if fecha_obj != hoy:  # Solo realizar esta comprobación si la fecha no es hoy
+        hoy_str = hoy.strftime('%Y-%m-%d')
+        sql = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+        result = db.session.execute(sql, {'fecha': hoy_str, 'horario_id': horario_id}).fetchone()
+        if result:
+            flash(f'Atención: Ya existe un registro para la clase {horario.nombre} en la fecha actual ({hoy.strftime("%d/%m/%Y")})', 'info')
     
     # Procesar el formulario si es POST
     if request.method == 'POST':
-        # Obtener fecha manual si se proporciona
-        fecha_manual = request.form.get('fecha_manual')
-        if fecha_manual:
-            try:
-                nueva_fecha = datetime.strptime(fecha_manual, '%Y-%m-%d').date()
-                print(f"MODIFICACIÓN FECHA: Usuario cambió la fecha de {fecha_obj.strftime('%d/%m/%Y')} a {nueva_fecha.strftime('%d/%m/%Y')}")
-                
-                # Verificar si ya existe un registro para la nueva fecha
-                registro_nueva_fecha = ClaseRealizada.query.filter_by(
-                    fecha=nueva_fecha,
-                    horario_id=horario_id
-                ).first()
-                
-                if registro_nueva_fecha:
-                    print(f"AVISO: Ya existe registro para la fecha manual {nueva_fecha.strftime('%d/%m/%Y')}, ID={registro_nueva_fecha.id}")
-                    flash(f'Ya existe un registro para esta clase en la fecha {nueva_fecha.strftime("%d/%m/%Y")}', 'warning')
-                    return redirect(url_for('editar_asistencia', id=registro_nueva_fecha.id))
-                
-                # Usar la nueva fecha
-                fecha_obj = nueva_fecha
-            except ValueError:
-                print(f"ERROR: Formato de fecha manual inválido: {fecha_manual}")
-                flash('Formato de fecha manual inválido. Use YYYY-MM-DD', 'danger')
-                profesores = Profesor.query.all()
-                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=hoy, profesores=profesores)
-        
-        # Procesar otros campos del formulario
         hora_llegada_str = request.form.get('hora_llegada')
         cantidad_alumnos = request.form.get('cantidad_alumnos', type=int)
         observaciones = request.form.get('observaciones')
@@ -3290,111 +2896,124 @@ def registrar_asistencia_fecha(fecha, horario_id):
         profesor_id = request.form.get('profesor_id')
         if not profesor_id:
             profesor_id = horario.profesor_id
-            print(f"PROFESOR: Usando profesor por defecto del horario, ID={profesor_id}")
         else:
             profesor_id = int(profesor_id)
-            print(f"PROFESOR: Usuario seleccionó un profesor diferente, ID={profesor_id}")
         
-        # Convertir hora de llegada a objeto time
-        hora_llegada = None
+        # Convertir hora de llegada a objeto Time
         if hora_llegada_str:
             try:
                 hora_llegada = datetime.strptime(hora_llegada_str, '%H:%M').time()
-                print(f"HORA LLEGADA: {hora_llegada_str} -> {hora_llegada}")
             except ValueError:
-                print(f"ERROR: Formato de hora inválido: {hora_llegada_str}")
                 flash('Formato de hora inválido. Use HH:MM', 'danger')
                 profesores = Profesor.query.all()
-                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=hoy, profesores=profesores)
+                return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj, profesores=profesores)
+        else:
+            hora_llegada = None
+        
+        # Crear y guardar la nueva clase
+        nueva_clase = ClaseRealizada(
+            fecha=fecha_obj,  # Asegurarse de usar la fecha original, no la actual
+            horario_id=horario.id,
+            profesor_id=profesor_id,
+            hora_llegada_profesor=hora_llegada,
+            cantidad_alumnos=cantidad_alumnos,
+            observaciones=observaciones
+        )
         
         try:
-            # Crear instancia directamente con SQLAlchemy ORM
-            nueva_clase = ClaseRealizada(
-                fecha=fecha_obj,  # IMPORTANTE: Esta es la fecha de la clase, no la fecha actual
-                horario_id=horario.id,
-                profesor_id=profesor_id,
-                hora_llegada_profesor=hora_llegada,
-                cantidad_alumnos=cantidad_alumnos,
-                observaciones=observaciones,
-                fecha_registro=datetime.utcnow()  # Esta sí es la fecha actual (cuándo se registró)
-            )
+            # Verificar nuevamente si existe un registro para evitar duplicados
+            fecha_str = fecha_obj.strftime('%Y-%m-%d')
+            sql = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+            result = db.session.execute(sql, {'fecha': fecha_str, 'horario_id': horario_id}).fetchone()
             
-            # Depuración para verificar las horas y fechas
-            print("="*50)
-            print(f"GUARDANDO CLASE:")
-            print(f"- Fecha de la clase: {fecha_obj.strftime('%d/%m/%Y')}")
-            print(f"- Fecha actual de registro: {datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')}")
-            print(f"- Horario ID: {horario.id}, Nombre: {horario.nombre}")
-            print(f"- Profesor ID: {profesor_id}")
-            print(f"- Hora llegada: {hora_llegada}")
-            print(f"- Hora inicio programada: {horario.hora_inicio}")
-            print(f"- Cantidad alumnos: {cantidad_alumnos}")
-            print(f"- Observaciones: {observaciones}")
-            print("="*50)
+            if result:
+                clase_existente_id = result[0]
+                print(f"DEBUG: Se detectó un registro existente durante la creación - ID: {clase_existente_id}")
+                flash(f'Ya existe un registro para la clase {horario.nombre} en la fecha {fecha_obj.strftime("%d/%m/%Y")}', 'warning')
+                return redirect(url_for('editar_asistencia', id=clase_existente_id))
             
-            # Agregar y guardar en la base de datos
-            db.session.add(nueva_clase)
+            # Ejecutar SQL directo para garantizar la inserción
+            sql = """
+            INSERT INTO clase_realizada 
+            (fecha, horario_id, profesor_id, hora_llegada_profesor, cantidad_alumnos, observaciones, fecha_registro) 
+            VALUES (:fecha, :horario_id, :profesor_id, :hora_llegada, :cantidad_alumnos, :observaciones, :fecha_registro)
+            """
+            
+            # Convertir fecha_obj a string ISO explícito
+            fecha_str = fecha_obj.strftime('%Y-%m-%d')
+            print(f"DEBUG: Insertando clase con fecha_obj={fecha_obj} convertida a fecha_str={fecha_str}")
+            
+            db.session.execute(sql, {
+                'fecha': fecha_str,  # Usar string en formato ISO en lugar del objeto fecha_obj
+                'horario_id': horario.id,
+                'profesor_id': profesor_id,
+                'hora_llegada': hora_llegada,
+                'cantidad_alumnos': cantidad_alumnos,
+                'observaciones': observaciones,
+                'fecha_registro': datetime.utcnow()  # Solo la fecha_registro es la actual
+            })
+            
             db.session.commit()
             
-            db.session.refresh(nueva_clase)
+            # Verificar que se haya guardado correctamente con la fecha original
+            result_verificacion = db.session.execute(
+                "SELECT id, fecha FROM clase_realizada WHERE horario_id = :horario_id ORDER BY id DESC LIMIT 1", 
+                {'horario_id': horario.id}
+            ).fetchone()
             
-            print(f"ÉXITO: Clase registrada con ID={nueva_clase.id}")
+            if result_verificacion:
+                print(f"DEBUG: Verificación post-inserción: ID={result_verificacion[0]}, fecha guardada={result_verificacion[1]}, fecha original={fecha_obj}")
             
-            # Verificar que la fecha guardada es la correcta
-            clase_guardada = ClaseRealizada.query.get(nueva_clase.id)
-            print(f"VERIFICACIÓN: Fecha guardada en BD={clase_guardada.fecha.strftime('%d/%m/%Y')}")
+            # Obtener el ID de la clase recién insertada
+            result = db.session.execute(
+                "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id ORDER BY id DESC LIMIT 1", 
+                {'fecha': fecha_str, 'horario_id': horario.id}
+            ).fetchone()
             
-            # Mensaje especial si se usó una fecha manual
-            if fecha_manual and fecha_manual != fecha:
-                flash(f'Clase registrada con fecha manual: {fecha_obj.strftime("%d/%m/%Y")}', 'success')
-            else:
-                flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
+            nueva_clase_id = result[0] if result else 'desconocido'
             
-            # Redirigir según si la fecha es hoy o no
+            print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase_id}, Fecha: {fecha_obj}, Horario: {horario_id}")
+            
+            flash(f'Asistencia para la clase {horario.nombre} del {fecha_obj.strftime("%d/%m/%Y")} registrada con éxito', 'success')
+            
+            # Cerrar y reabrir la sesión para limpiar la caché
+            db.session.close()
+            db.session = db.create_scoped_session()
+            
+            # Si la fecha es hoy, redirigir al control de asistencia
+            # Si es una fecha anterior, redirigir al historial de clases no registradas
             if fecha_obj == hoy:
                 return redirect(url_for('control_asistencia'))
             else:
-                # Forzar actualización de la caché
+                # Añadir timestamp y clear_cache para forzar actualización completa
                 timestamp = int(time_module.time())
-                print(f"REDIRECCIÓN: A informe mensual para {fecha_obj.month}/{fecha_obj.year}")
+                # Redirigir al informe mensual del mes correspondiente
                 return redirect(url_for('informe_mensual', 
                                       mes=fecha_obj.month, 
                                       anio=fecha_obj.year, 
                                       refresh=timestamp, 
                                       clear_cache=1))
-                
         except Exception as e:
             db.session.rollback()
-            print(f"ERROR CRÍTICO: No se pudo registrar la clase - {str(e)}")
-            trace = traceback.format_exc()
-            print(trace)
+            print(f"ERROR: No se pudo registrar la clase - {str(e)}")
             flash(f'Error al registrar la clase: {str(e)}', 'danger')
             return redirect(url_for('clases_no_registradas'))
     
-    # Para solicitudes GET, mostrar el formulario
+    # Obtener todos los profesores para el selector
     profesores = Profesor.query.all()
-    print(f"FORMULARIO: Mostrando formulario para fecha={fecha_obj.strftime('%d/%m/%Y')}, horario={horario.nombre}")
-    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=hoy, profesores=profesores)
+    
+    return render_template('asistencia/registrar.html', horario=horario, fecha=fecha_obj, hoy=fecha_obj, profesores=profesores)
 
 @app.route('/asistencia/registrar-clases-masivo', methods=['POST'])
 @app.route('/registrar-clases-no-registradas', methods=['POST'])  # Alias para mantener compatibilidad
 def registrar_clases_no_registradas():
     """Registrar múltiples clases no registradas de forma masiva"""
     if request.method == 'POST':
-        print("="*50)
-        print("INICIO REGISTRO MASIVO DE CLASES NO REGISTRADAS")
-        fecha_actual = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        print(f"Fecha/hora actual: {fecha_actual}")
-        print("="*50)
-        
         clases_ids = request.form.getlist('clases_ids[]')
         
         if not clases_ids:
-            print("ERROR: No se seleccionaron clases para registrar")
             flash('No seleccionó ninguna clase para registrar', 'warning')
             return redirect(url_for('clases_no_registradas'))
-        
-        print(f"Se seleccionaron {len(clases_ids)} clases para registro masivo")
         
         # Verificar si se especificó un profesor alternativo para todas las clases
         profesor_id_alternativo = request.form.get('profesor_id_alternativo')
@@ -3405,136 +3024,156 @@ def registrar_clases_no_registradas():
                 profesor = Profesor.query.get(profesor_id_alternativo)
                 if not profesor:
                     profesor_id_alternativo = None
-                    print(f"ADVERTENCIA: Profesor alternativo con ID={profesor_id_alternativo} no existe")
-                    flash('El profesor alternativo seleccionado no existe', 'warning')
-                else:
-                    print(f"Usando profesor alternativo: ID={profesor.id}, Nombre={profesor.nombre} {profesor.apellido}")
             except (ValueError, TypeError):
                 profesor_id_alternativo = None
-                print("ERROR: ID de profesor alternativo inválido")
-                flash('ID de profesor alternativo inválido', 'warning')
         
         clases_registradas = 0
         clases_procesadas = []
-        
-        print("-"*40)
-        print("PROCESANDO CLASES:")
         
         for clase_id in clases_ids:
             try:
                 # El formato es 'YYYY-MM-DD|horario_id'
                 partes = clase_id.split('|')
-                if len(partes) != 2:
-                    print(f"ERROR: Formato de ID de clase inválido: {clase_id}")
-                    continue
-                
-                fecha_str = partes[0]
+                fecha = partes[0]
                 horario_id = int(partes[1])
                 
-                print(f"Procesando: fecha={fecha_str}, horario_id={horario_id}")
+                print(f"DEBUG: Registrando clase masiva con fecha={fecha} y horario_id={horario_id}")
                 
-                # Convertir la fecha a objeto date
-                try:
-                    fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-                    print(f"  * Fecha convertida: {fecha_obj.strftime('%d/%m/%Y')}")
-                except ValueError:
-                    print(f"ERROR: Formato de fecha inválido: {fecha_str}")
+                fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+                print(f"DEBUG: Fecha convertida a fecha_obj={fecha_obj} (tipo: {type(fecha_obj)})")
+                
+                # Obtener información del horario usando SQL directo
+                sql_horario = "SELECT id, profesor_id, hora_inicio FROM horario_clase WHERE id = :horario_id"
+                result_horario = db.session.execute(sql_horario, {'horario_id': horario_id}).fetchone()
+                
+                if not result_horario:
+                    print(f"DEBUG: Horario no encontrado - ID: {horario_id}")
                     continue
                 
-                # Obtener el horario
-                horario = HorarioClase.query.get(horario_id)
-                if not horario:
-                    print(f"ERROR: Horario con ID={horario_id} no encontrado")
+                horario_id = result_horario[0]
+                # Usar el profesor alternativo si se especificó, de lo contrario usar el del horario
+                profesor_id = profesor_id_alternativo if profesor_id_alternativo else result_horario[1]
+                hora_inicio = result_horario[2]
+                
+                # Asegurar que hora_inicio sea un objeto time válido
+                if isinstance(hora_inicio, str):
+                    try:
+                        hora_inicio = datetime.strptime(hora_inicio, '%H:%M:%S').time()
+                    except ValueError:
+                        try:
+                            hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+                        except ValueError:
+                            # Si no se puede convertir, usar None o una hora por defecto
+                            hora_inicio = None
+                            print(f"DEBUG: No se pudo convertir hora_inicio para horario ID: {horario_id}")
+                
+                # Verificar si ya existe un registro para esta clase usando SQL directo
+                fecha_str = fecha_obj.strftime('%Y-%m-%d')
+                sql_verificar = "SELECT id FROM clase_realizada WHERE fecha = :fecha AND horario_id = :horario_id LIMIT 1"
+                result_verificar = db.session.execute(sql_verificar, {'fecha': fecha_str, 'horario_id': horario_id}).fetchone()
+                
+                if result_verificar:
+                    print(f"DEBUG: Clase ya existe - Fecha: {fecha_obj} (fecha_str={fecha_str}), Horario: {horario_id}")
                     continue
                 
-                print(f"  * Horario: ID={horario.id}, Nombre={horario.nombre}, Hora={horario.hora_inicio}")
+                # Crear un nuevo registro con SQL directo
+                sql_insertar = """
+                INSERT INTO clase_realizada 
+                (fecha, horario_id, profesor_id, hora_llegada_profesor, hora_inicio, cantidad_alumnos, observaciones, fecha_registro) 
+                VALUES (:fecha, :horario_id, :profesor_id, :hora_llegada, :hora_inicio, :cantidad_alumnos, :observaciones, :fecha_registro)
+                """
                 
-                # Verificar si ya existe un registro para esta fecha y horario
-                registro_existente = ClaseRealizada.query.filter_by(
-                    fecha=fecha_obj,
-                    horario_id=horario_id
-                ).first()
+                # Convertir fecha_obj a string ISO explícito
+                fecha_str = fecha_obj.strftime('%Y-%m-%d')
+                print(f"DEBUG: Insertando clase masiva con fecha_obj={fecha_obj} convertida a fecha_str={fecha_str}, hora_inicio={hora_inicio}")
                 
-                if registro_existente:
-                    print(f"  * OMITIDO: Ya existe un registro para fecha={fecha_obj.strftime('%d/%m/%Y')}, horario_id={horario_id}, ID={registro_existente.id}")
-                    continue
+                db.session.execute(sql_insertar, {
+                    'fecha': fecha_str,  # Usar string en formato ISO en lugar del objeto fecha_obj
+                    'horario_id': horario_id,
+                    'profesor_id': profesor_id,
+                    'hora_llegada': hora_inicio,
+                    'hora_inicio': hora_inicio,  # Guardar explícitamente la hora_inicio
+                    'cantidad_alumnos': 0,
+                    'observaciones': "Registrada automáticamente",
+                    'fecha_registro': datetime.utcnow()
+                })
                 
-                # Determinar el profesor a utilizar
-                profesor_id = profesor_id_alternativo if profesor_id_alternativo else horario.profesor_id
-                profesor = Profesor.query.get(profesor_id)
-                print(f"  * Profesor: ID={profesor_id}, Nombre={(profesor.nombre + ' ' + profesor.apellido) if profesor else 'Desconocido'}")
-                
-                # Crear una nueva clase - IMPORTANTE: usar la fecha original de la clase
-                nueva_clase = ClaseRealizada(
-                    fecha=fecha_obj,  # Fecha programada original de la clase
-                    horario_id=horario_id,
-                    profesor_id=profesor_id,
-                    cantidad_alumnos=0,  # Por defecto, sin alumnos
-                    observaciones=f"Registrada automáticamente el {datetime.now().strftime('%d/%m/%Y')}",
-                    fecha_registro=datetime.utcnow()  # Fecha actual (cuándo se registra)
-                )
-                
-                # Guardar en la base de datos
-                db.session.add(nueva_clase)
                 db.session.commit()
                 
-                db.session.refresh(nueva_clase)
+                # Verificar que se haya guardado correctamente con la fecha original
+                result_verificacion = db.session.execute(
+                    "SELECT id, fecha FROM clase_realizada WHERE horario_id = :horario_id ORDER BY id DESC LIMIT 1", 
+                    {'horario_id': horario_id}
+                ).fetchone()
                 
-                # Verificar que la fecha guardada es la correcta
-                clase_guardada = ClaseRealizada.query.get(nueva_clase.id)
-                fecha_guardada = clase_guardada.fecha.strftime('%d/%m/%Y')
-                fecha_esperada = fecha_obj.strftime('%d/%m/%Y')
+                if result_verificacion:
+                    print(f"DEBUG: Verificación post-inserción masiva: ID={result_verificacion[0]}, fecha guardada={result_verificacion[1]}, fecha original={fecha_obj}")
                 
-                if fecha_guardada == fecha_esperada:
-                    print(f"  * ✅ REGISTRADA: ID={nueva_clase.id}, Fecha correcta={fecha_guardada}")
-                else:
-                    print(f"  * ⚠️ ADVERTENCIA: Fecha guardada ({fecha_guardada}) difiere de la esperada ({fecha_esperada})")
+                # Obtener el ID de la clase recién insertada
+                sql_obtener_id = """
+                SELECT id FROM clase_realizada 
+                WHERE fecha = :fecha AND horario_id = :horario_id 
+                ORDER BY id DESC LIMIT 1
+                """
+                result_id = db.session.execute(sql_obtener_id, {'fecha': fecha_str, 'horario_id': horario_id}).fetchone()
                 
-                # Registrar éxito
+                nueva_clase_id = result_id[0] if result_id else 'desconocido'
+                
                 clases_registradas += 1
                 clases_procesadas.append({
                     'fecha': fecha_obj,
                     'horario_id': horario_id,
-                    'id': nueva_clase.id
+                    'id': nueva_clase_id
                 })
                 
+                print(f"DEBUG: Clase registrada con éxito - ID: {nueva_clase_id}, Fecha: {fecha_obj}, Horario: {horario_id}")
+                
             except Exception as e:
+                # Registrar el error pero continuar con las otras clases
                 db.session.rollback()
-                print(f"  * ❌ ERROR: No se pudo registrar la clase {clase_id} - {str(e)}")
-                trace = traceback.format_exc()
-                print(trace)
+                app.logger.error(f"Error al registrar clase {clase_id}: {str(e)}")
+                print(f"ERROR: No se pudo registrar la clase {clase_id} - {str(e)}")
                 continue
         
-        print("-"*40)
-        print(f"RESULTADO: Se registraron {clases_registradas} de {len(clases_ids)} clases")
-        print("="*50)
-        
-        # Mensaje de resultados
         if clases_registradas > 0:
-            flash(f'Se registraron {clases_registradas} clases correctamente', 'success')
-            
-            # Limpiar caché para asegurar que las vistas se actualicen
-            db.session.close()
-            db.session = db.create_scoped_session()
-            
-            # Añadir timestamp para forzar actualización completa
-            timestamp = int(time_module.time())
-            
-            # Si hay clases procesadas, redirigir al informe del mes correspondiente
-            if clases_procesadas:
-                primera_fecha = clases_procesadas[0]['fecha']
-                mes = primera_fecha.month
-                anio = primera_fecha.year
-                print(f"Redirigiendo a informe mensual: {mes}/{anio}")
-                return redirect(url_for('informe_mensual', mes=mes, anio=anio, refresh=timestamp, clear_cache=1))
-            else:
-                return redirect(url_for('clases_no_registradas', refresh=timestamp, clear_cache=1))
+            try:
+                # Forzar un cierre y reapertura de la sesión para limpiar la caché
+                db.session.close()
+                db.session = db.create_scoped_session()
+                
+                print(f"DEBUG: Se registraron {clases_registradas} clases correctamente: {clases_procesadas}")
+                flash(f'Se registraron {clases_registradas} clases correctamente', 'success')
+            except Exception as e:
+                print(f"ERROR: Error al limpiar la caché - {str(e)}")
+                flash(f'Se registraron clases pero hubo un error al actualizar la vista: {str(e)}', 'warning')
         else:
             flash('No se registró ninguna clase nueva', 'warning')
-            return redirect(url_for('clases_no_registradas'))
-            
-    # Si no es POST o hay otro problema
-    return redirect(url_for('clases_no_registradas'))
+        
+        # Añadir timestamp y clear_cache para forzar actualización completa
+        timestamp = int(time_module.time())
+        
+        # Para asegurar que la caché se limpie completamente, realizamos conexiones frescas
+        try:
+            # Forzar una actualización completa de la BD
+            db.session.commit()
+            # Cerrar la sesión actual
+            db.session.close()
+            # Crear una nueva sesión limpia
+            db.session = db.create_scoped_session()
+            # Expirar todos los objetos en la sesión
+            db.session.expire_all()
+            print("DEBUG: Limpieza de caché realizada antes del redirect")
+        except Exception as e:
+            print(f"ERROR: Error al realizar limpieza final de caché - {str(e)}")
+        
+        # Si hay clases procesadas, redirigir al informe del mes correspondiente a la primera clase
+        if clases_procesadas:
+            primera_fecha = clases_procesadas[0]['fecha']
+            mes = primera_fecha.month
+            anio = primera_fecha.year
+            return redirect(url_for('informe_mensual', mes=mes, anio=anio, refresh=timestamp, clear_cache=1))
+        else:
+            return redirect(url_for('clases_no_registradas', refresh=timestamp, clear_cache=1))
 
 # Add initialization code to ensure the application starts correctly
 if __name__ == '__main__':
@@ -3689,449 +3328,55 @@ def exportar_db():
         flash(f'Error al exportar la base de datos: {str(e)}', 'danger')
         return redirect(url_for('configuracion_exportar'))
 
-@app.route('/configuracion/exportar_db_completo', methods=['GET'])
-def exportar_db_completo():
-    """Exportar el archivo de la base de datos junto con los archivos de audio"""
+@app.route('/configuracion/importar_db', methods=['POST'])
+def importar_db():
+    """Importar un archivo de base de datos"""
+    if 'db_file' not in request.files:
+        flash('No se seleccionó ningún archivo', 'danger')
+        return redirect(url_for('configuracion_exportar'))
+    
+    db_file = request.files['db_file']
+    
+    if db_file.filename == '':
+        flash('No se seleccionó ningún archivo', 'danger')
+        return redirect(url_for('configuracion_exportar'))
+    
+    if not db_file.filename.endswith('.db'):
+        flash('El archivo debe tener extensión .db', 'danger')
+        return redirect(url_for('configuracion_exportar'))
+    
     try:
-        import shutil
-        import zipfile
-        import time
-        import glob
-        
-        # Registrar inicio del proceso
-        app.logger.info("="*80)
-        app.logger.info("INICIANDO PROCESO DE BACKUP COMPLETO (DB + AUDIOS)")
-        app.logger.info(f"Fecha/hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        app.logger.info("="*80)
-        
-        # Imprimir en consola también para diagnóstico inmediato
-        print("="*80)
-        print("INICIANDO PROCESO DE BACKUP COMPLETO (DB + AUDIOS)")
-        print(f"Fecha/hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("="*80)
-        
-        # Ruta al archivo de base de datos
+        # Ruta al archivo de base de datos original
         db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gimnasio.db')
         
-        # Verificar que el archivo existe
-        if not os.path.exists(db_path):
-            mensaje = 'No se encontró el archivo de base de datos'
-            app.logger.error(mensaje)
-            print(f"ERROR: {mensaje}")
-            flash(mensaje, 'danger')
-            return redirect(url_for('configuracion_exportar'))
-        
-        # Crear una carpeta temporal para la exportación
+        # Crear una copia de seguridad antes de reemplazar
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        temp_dir = os.path.join(os.path.dirname(db_path), 'backups', f'export_temp_{timestamp}')
-        os.makedirs(temp_dir, exist_ok=True)
-        app.logger.info(f"Directorio temporal de backup creado: {temp_dir}")
-        print(f"Directorio temporal de backup creado: {temp_dir}")
+        backup_path = os.path.join(os.path.dirname(db_path), 'backups', f'gimnasio_antes_importar_{timestamp}.db')
         
-        # Copiar la base de datos a la carpeta temporal
-        backup_filename = f'gimnasio_backup_{timestamp}.db'
-        temp_db_path = os.path.join(temp_dir, backup_filename)
-        shutil.copy2(db_path, temp_db_path)
-        app.logger.info(f"Base de datos copiada a: {temp_db_path}")
-        print(f"Base de datos copiada a: {temp_db_path}")
+        # Asegurar que el directorio existe
+        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
         
-        # Preparar la carpeta principal para los archivos de audio
-        upload_base = app.config.get('UPLOAD_FOLDER', 'static/uploads')
-        audio_base_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), upload_base, 'audios')
-        temp_audio_folder = os.path.join(temp_dir, 'audios')
-        
-        # Crear directorio de audios en la carpeta temporal
-        os.makedirs(temp_audio_folder, exist_ok=True)
-        app.logger.info(f"Directorio temporal para audios creado: {temp_audio_folder}")
-        print(f"Directorio temporal para audios creado: {temp_audio_folder}")
-        
-        # Variable para contar archivos
-        audio_count = 0
-        audio_errors = 0
-        total_size = 0
-        
-        # 1. Copiar audios de la carpeta principal
-        if os.path.exists(audio_base_folder):
-            app.logger.info(f"Copiando audios de la carpeta principal: {audio_base_folder}")
-            print(f"Copiando audios de la carpeta principal: {audio_base_folder}")
-            
-            for audio_file in os.listdir(audio_base_folder):
-                src_path = os.path.join(audio_base_folder, audio_file)
-                if os.path.isfile(src_path):
-                    try:
-                        # Saltar archivos temporales o de sistema
-                        if audio_file.startswith('.') or audio_file == 'permanent':
-                            continue
-                            
-                        dest_path = os.path.join(temp_audio_folder, audio_file)
-                        shutil.copy2(src_path, dest_path)
-                        file_size = os.path.getsize(src_path)
-                        total_size += file_size
-                        audio_count += 1
-                        
-                        app.logger.debug(f"Audio copiado: {audio_file} ({file_size/1024:.2f} KB)")
-                        print(f"Audio copiado: {audio_file} ({file_size/1024:.2f} KB)")
-                    except Exception as e:
-                        error_msg = f"Error al copiar audio {audio_file}: {str(e)}"
-                        app.logger.error(error_msg)
-                        print(f"ERROR: {error_msg}")
-                        audio_errors += 1
-        
-        # 2. Copiar audios de la estructura de carpetas por horario (permanent)
-        permanent_audio_dir = os.path.join(audio_base_folder, 'permanent')
-        if os.path.exists(permanent_audio_dir):
-            app.logger.info(f"Procesando carpeta de audios permanentes: {permanent_audio_dir}")
-            print(f"Procesando carpeta de audios permanentes: {permanent_audio_dir}")
-            
-            # Crear directorio para audios permanentes
-            temp_permanent_dir = os.path.join(temp_audio_folder, 'permanent')
-            os.makedirs(temp_permanent_dir, exist_ok=True)
-            
-            # Obtener todos los directorios de horarios
-            horario_dirs = [d for d in os.listdir(permanent_audio_dir) 
-                           if os.path.isdir(os.path.join(permanent_audio_dir, d))]
-            
-            app.logger.info(f"Se encontraron {len(horario_dirs)} directorios de horarios")
-            print(f"Se encontraron {len(horario_dirs)} directorios de horarios")
-            
-            # Copiar audios de cada directorio de horario
-            for horario_dir in horario_dirs:
-                src_horario_path = os.path.join(permanent_audio_dir, horario_dir)
-                dest_horario_path = os.path.join(temp_permanent_dir, horario_dir)
-                
-                # Crear directorio del horario en el destino
-                os.makedirs(dest_horario_path, exist_ok=True)
-                
-                horario_file_count = 0
-                horario_errors = 0
-                
-                # Copiar cada archivo de audio en el directorio del horario
-                for audio_file in os.listdir(src_horario_path):
-                    src_file_path = os.path.join(src_horario_path, audio_file)
-                    
-                    if os.path.isfile(src_file_path):
-                        try:
-                            dest_file_path = os.path.join(dest_horario_path, audio_file)
-                            shutil.copy2(src_file_path, dest_file_path)
-                            file_size = os.path.getsize(src_file_path)
-                            total_size += file_size
-                            audio_count += 1
-                            horario_file_count += 1
-                            
-                            app.logger.debug(f"Audio {horario_dir}/{audio_file} copiado ({file_size/1024:.2f} KB)")
-                        except Exception as e:
-                            error_msg = f"Error al copiar audio {horario_dir}/{audio_file}: {str(e)}"
-                            app.logger.error(error_msg)
-                            print(f"ERROR: {error_msg}")
-                            audio_errors += 1
-                            horario_errors += 1
-                
-                app.logger.info(f"Horario {horario_dir}: {horario_file_count} archivos copiados, {horario_errors} errores")
-                print(f"Horario {horario_dir}: {horario_file_count} archivos copiados, {horario_errors} errores")
-        
-        # Crear archivo ZIP con todo el contenido
-        zip_filename = f'gimnasio_backup_completo_{timestamp}.zip'
-        zip_path = os.path.join(os.path.dirname(db_path), 'backups', zip_filename)
-        
-        app.logger.info(f"Creando archivo ZIP: {zip_path}")
-        print(f"Creando archivo ZIP: {zip_path}")
-        
-        audio_files_in_zip = 0
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Agregar la base de datos
-            zipf.write(temp_db_path, arcname=backup_filename)
-            
-            # Agregar los archivos de audio
-            for root, _, files in os.walk(temp_audio_folder):
-                for file in files:
-                    try:
-                        file_path = os.path.join(root, file)
-                        # Calcular la ruta relativa dentro del ZIP
-                        rel_path = os.path.relpath(file_path, temp_dir)
-                        zipf.write(file_path, arcname=rel_path)
-                        audio_files_in_zip += 1
-                        app.logger.debug(f"Archivo agregado al ZIP: {rel_path}")
-                    except Exception as e:
-                        error_msg = f"Error al agregar archivo al ZIP {file}: {str(e)}"
-                        app.logger.error(error_msg)
-                        print(f"ERROR: {error_msg}")
-        
-        # Verificar que todos los archivos se agregaron al ZIP
-        zip_verification = zipfile.ZipFile(zip_path, 'r')
-        zip_file_count = len(zip_verification.namelist())
-        zip_verification.close()
-        
-        # Eliminar directorio temporal después de crear el ZIP
-        shutil.rmtree(temp_dir)
-        app.logger.info(f"Directorio temporal eliminado: {temp_dir}")
-        print(f"Directorio temporal eliminado: {temp_dir}")
-        
-        # Calcular tamaño del ZIP
-        zip_size = os.path.getsize(zip_path)
-        
-        # Registrar éxito
-        summary = (
-            f"Backup completo creado: {zip_path}\n"
-            f"- Tamaño del archivo ZIP: {zip_size/1024/1024:.2f} MB\n"
-            f"- Archivos de audio procesados: {audio_count}\n"
-            f"- Tamaño total de audios: {total_size/1024/1024:.2f} MB\n"
-            f"- Archivos incluidos en el ZIP: {zip_file_count}\n"
-            f"- Errores durante el proceso: {audio_errors}"
-        )
-        
-        app.logger.info("="*50)
-        app.logger.info("RESUMEN DEL BACKUP:")
-        app.logger.info(summary)
-        app.logger.info("="*50)
-        
-        print("="*50)
-        print("RESUMEN DEL BACKUP:")
-        print(summary)
-        print("="*50)
-        
-        # Enviar el archivo ZIP al cliente
-        return send_file(zip_path, 
-                         as_attachment=True, 
-                         download_name=zip_filename,
-                         mimetype='application/zip')
-    
-    except Exception as e:
-        error_msg = f"Error exportando backup completo: {str(e)}"
-        app.logger.error(error_msg)
-        app.logger.error(traceback.format_exc())
-        
-        print("="*50)
-        print(f"ERROR EN BACKUP: {error_msg}")
-        print(traceback.format_exc())
-        print("="*50)
-        
-        flash(f'Error al exportar el backup completo: {str(e)}', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-
-@app.route('/configuracion/importar_db_completo', methods=['POST'])
-def importar_db_completo():
-    """Importar un archivo ZIP con la base de datos y archivos de audio"""
-    if 'zip_file' not in request.files:
-        flash('No se seleccionó ningún archivo', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-    
-    zip_file = request.files['zip_file']
-    
-    if zip_file.filename == '':
-        flash('No se seleccionó ningún archivo', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-    
-    if not zip_file.filename.endswith('.zip'):
-        flash('El archivo debe tener extensión .zip', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-    
-    try:
-        import zipfile
-        import tempfile
+        # Copiar el archivo original como respaldo
         import shutil
-        import glob
+        shutil.copy2(db_path, backup_path)
         
-        # Registrar inicio del proceso
-        app.logger.info("="*80)
-        app.logger.info("INICIANDO PROCESO DE IMPORTACIÓN DE BACKUP COMPLETO (DB + AUDIOS)")
-        app.logger.info(f"Fecha/hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        app.logger.info(f"Archivo ZIP: {zip_file.filename}")
-        app.logger.info("="*80)
+        # Cerrar la conexión actual a la base de datos antes de reemplazarla
+        db.session.remove()
         
-        # Imprimir en consola también
-        print("="*80)
-        print("INICIANDO PROCESO DE IMPORTACIÓN DE BACKUP COMPLETO (DB + AUDIOS)")
-        print(f"Fecha/hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Archivo ZIP: {zip_file.filename}")
-        print("="*80)
+        # Guardar el archivo subido como el nuevo archivo de base de datos
+        db_file.save(db_path)
         
-        # Crear directorio temporal para descomprimir
-        with tempfile.TemporaryDirectory() as temp_dir:
-            app.logger.info(f"Directorio temporal creado: {temp_dir}")
-            print(f"Directorio temporal creado: {temp_dir}")
-            
-            zip_path = os.path.join(temp_dir, 'backup.zip')
-            zip_file.save(zip_path)
-            
-            # Verificar el contenido del ZIP antes de descomprimirlo
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_contents = zip_ref.namelist()
-                    db_files = [f for f in zip_contents if f.endswith('.db')]
-                    app.logger.info(f"Contenido del ZIP: {len(zip_contents)} archivos, {len(db_files)} bases de datos")
-                    print(f"Contenido del ZIP: {len(zip_contents)} archivos, {len(db_files)} bases de datos")
-                    
-                    if not db_files:
-                        error_msg = "El archivo ZIP no contiene una base de datos válida"
-                        app.logger.error(error_msg)
-                        print(f"ERROR: {error_msg}")
-                        flash(error_msg, 'danger')
-                        return redirect(url_for('configuracion_exportar'))
-                    
-                    # Extraer contenido del ZIP
-                    app.logger.info("Extrayendo archivos del ZIP...")
-                    print("Extrayendo archivos del ZIP...")
-                    zip_ref.extractall(temp_dir)
-            except zipfile.BadZipFile:
-                error_msg = "El archivo no es un ZIP válido o está corrupto"
-                app.logger.error(error_msg)
-                print(f"ERROR: {error_msg}")
-                flash(error_msg, 'danger')
-                return redirect(url_for('configuracion_exportar'))
-            
-            # Buscar el archivo .db en el directorio temporal
-            db_file = None
-            for file in db_files:
-                db_file = os.path.join(temp_dir, file)
-                if os.path.exists(db_file):
-                    break
-            
-            if not db_file or not os.path.exists(db_file):
-                error_msg = "No se pudo encontrar la base de datos en el archivo ZIP"
-                app.logger.error(error_msg)
-                print(f"ERROR: {error_msg}")
-                flash(error_msg, 'danger')
-                return redirect(url_for('configuracion_exportar'))
-            
-            app.logger.info(f"Base de datos encontrada: {db_file}")
-            print(f"Base de datos encontrada: {db_file}")
-            
-            # Ruta al archivo de base de datos original
-            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gimnasio.db')
-            
-            # Crear una copia de seguridad antes de reemplazar
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_path = os.path.join(os.path.dirname(db_path), 'backups', f'gimnasio_antes_importar_{timestamp}.db')
-            os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-            
-            # Hacer copia de seguridad de la DB actual
-            shutil.copy2(db_path, backup_path)
-            app.logger.info(f"Backup de la base de datos actual creado: {backup_path}")
-            print(f"Backup de la base de datos actual creado: {backup_path}")
-            
-            # Hacer copia de seguridad de los audios actuales
-            upload_base = app.config.get('UPLOAD_FOLDER', 'static/uploads')
-            audio_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), upload_base, 'audios')
-            audio_backup_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups', f'audios_backup_{timestamp}')
-            
-            audio_backup_count = 0
-            if os.path.exists(audio_folder):
-                app.logger.info(f"Realizando backup de los audios actuales: {audio_folder} -> {audio_backup_folder}")
-                print(f"Realizando backup de los audios actuales: {audio_folder} -> {audio_backup_folder}")
-                
-                # Hacer una copia de seguridad completa de la carpeta de audios
-                shutil.copytree(audio_folder, audio_backup_folder, dirs_exist_ok=True)
-                
-                # Contar archivos respaldados
-                audio_backup_count = sum(
-                    len(files) for _, _, files in os.walk(audio_backup_folder)
-                )
-                
-                app.logger.info(f"Se han respaldado {audio_backup_count} archivos de audio en {audio_backup_folder}")
-                print(f"Se han respaldado {audio_backup_count} archivos de audio en {audio_backup_folder}")
-            
-            # Cerrar la conexión actual a la base de datos
-            app.logger.info("Cerrando la conexión actual a la base de datos...")
-            print("Cerrando la conexión actual a la base de datos...")
-            db.session.remove()
-            
-            # Reemplazar la base de datos
-            app.logger.info(f"Reemplazando base de datos: {db_file} -> {db_path}")
-            print(f"Reemplazando base de datos: {db_file} -> {db_path}")
-            shutil.copy2(db_file, db_path)
-            
-            # Verificar si el ZIP incluye archivos de audio
-            extracted_audio_folder = os.path.join(temp_dir, 'audios')
-            
-            audio_restored_count = 0
-            audio_errors = 0
-            
-            if os.path.exists(extracted_audio_folder):
-                app.logger.info(f"Restaurando archivos de audio: {extracted_audio_folder} -> {audio_folder}")
-                print(f"Restaurando archivos de audio: {extracted_audio_folder} -> {audio_folder}")
-                
-                # Asegurar que el directorio de audio existe
-                os.makedirs(audio_folder, exist_ok=True)
-                
-                # Restaurar la estructura completa de archivos de audio
-                for root, dirs, files in os.walk(extracted_audio_folder):
-                    # Calcular la ruta relativa
-                    rel_path = os.path.relpath(root, extracted_audio_folder)
-                    
-                    # Crear la estructura de directorios en el destino
-                    if rel_path != '.':
-                        target_dir = os.path.join(audio_folder, rel_path)
-                        os.makedirs(target_dir, exist_ok=True)
-                        app.logger.debug(f"Creado directorio: {target_dir}")
-                    
-                    # Copiar cada archivo
-                    for file in files:
-                        try:
-                            src_file = os.path.join(root, file)
-                            
-                            # Determinar la ruta de destino
-                            if rel_path == '.':
-                                # Archivo en la raíz de audios
-                                dest_file = os.path.join(audio_folder, file)
-                            else:
-                                # Archivo en subdirectorio
-                                dest_file = os.path.join(audio_folder, rel_path, file)
-                            
-                            # Copiar el archivo
-                            shutil.copy2(src_file, dest_file)
-                            audio_restored_count += 1
-                            
-                            if audio_restored_count % 50 == 0:
-                                app.logger.info(f"Restaurados {audio_restored_count} archivos hasta ahora...")
-                                print(f"Restaurados {audio_restored_count} archivos hasta ahora...")
-                            
-                        except Exception as e:
-                            error_msg = f"Error al restaurar audio {rel_path}/{file}: {str(e)}"
-                            app.logger.error(error_msg)
-                            print(f"ERROR: {error_msg}")
-                            audio_errors += 1
-                
-                app.logger.info(f"Se han restaurado {audio_restored_count} archivos de audio desde el backup")
-                print(f"Se han restaurado {audio_restored_count} archivos de audio desde el backup")
-                
-                if audio_errors > 0:
-                    app.logger.warning(f"Hubo {audio_errors} errores durante la restauración de audios")
-                    print(f"ADVERTENCIA: Hubo {audio_errors} errores durante la restauración de audios")
+        # Registrar el éxito
+        app.logger.info(f"Base de datos importada exitosamente. Respaldo guardado en {backup_path}")
+        flash('Base de datos importada exitosamente. Se ha creado una copia de seguridad de la base de datos anterior.', 'success')
         
-        # Registrar resumen del proceso
-        summary = (
-            f"Backup completo importado exitosamente.\n"
-            f"- Base de datos respaldada en: {backup_path}\n"
-            f"- Respaldo de {audio_backup_count} archivos de audio en: {audio_backup_folder}\n"
-            f"- {audio_restored_count} archivos de audio restaurados\n"
-            f"- {audio_errors} errores durante la restauración"
-        )
-        
-        app.logger.info("="*50)
-        app.logger.info("RESUMEN DE LA IMPORTACIÓN:")
-        app.logger.info(summary)
-        app.logger.info("="*50)
-        
-        print("="*50)
-        print("RESUMEN DE LA IMPORTACIÓN:")
-        print(summary)
-        print("="*50)
-        
-        flash('Backup completo importado exitosamente. Se ha creado una copia de seguridad de la base de datos y archivos de audio anteriores.', 'success')
-        
+        # Reiniciar la aplicación (esto no funciona en todas las configuraciones)
+        # En producción, esto debería mostrar instrucciones para reiniciar manualmente
         return redirect(url_for('configuracion_exportar'))
     
     except Exception as e:
-        error_msg = f"Error importando backup completo: {str(e)}"
-        app.logger.error(error_msg)
-        app.logger.error(traceback.format_exc())
-        
-        print("="*50)
-        print(f"ERROR EN IMPORTACIÓN: {error_msg}")
-        print(traceback.format_exc())
-        print("="*50)
-        
-        flash(f'Error al importar el backup completo: {str(e)}', 'danger')
+        app.logger.error(f"Error importando la base de datos: {str(e)}")
+        flash(f'Error al importar la base de datos: {str(e)}', 'danger')
         return redirect(url_for('configuracion_exportar'))
 
 @app.route('/generate-logo-png')
@@ -4448,248 +3693,3 @@ def test_debug_mantenimiento():
 @app.route('/test-debug-root')
 def test_debug_root():
     return "Ruta de prueba en la raíz activa"
-
-@app.route('/configuracion/importar_db', methods=['POST'])
-def importar_db():
-    """Importar un archivo de base de datos"""
-    if 'db_file' not in request.files:
-        flash('No se seleccionó ningún archivo', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-    
-    db_file = request.files['db_file']
-    
-    if db_file.filename == '':
-        flash('No se seleccionó ningún archivo', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-    
-    if not db_file.filename.endswith('.db'):
-        flash('El archivo debe tener extensión .db', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-    
-    try:
-        # Ruta al archivo de base de datos original
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gimnasio.db')
-        
-        # Crear una copia de seguridad antes de reemplazar
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_path = os.path.join(os.path.dirname(db_path), 'backups', f'gimnasio_antes_importar_{timestamp}.db')
-        
-        # Asegurar que el directorio existe
-        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-        
-        # Copiar el archivo original como respaldo
-        import shutil
-        shutil.copy2(db_path, backup_path)
-        
-        # Hacer una copia de seguridad de los archivos de audio existentes
-        audio_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'audios')
-        audio_backup_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups', f'audios_backup_{timestamp}')
-        
-        # Verificar si hay archivos de audio para respaldar
-        existing_audio_files = []
-        if os.path.exists(audio_folder):
-            # Crear directorio de respaldo de audios
-            os.makedirs(audio_backup_folder, exist_ok=True)
-            
-            # Guardar lista de archivos existentes y copiarlos al respaldo
-            existing_audio_files = os.listdir(audio_folder)
-            for audio_file in existing_audio_files:
-                if os.path.isfile(os.path.join(audio_folder, audio_file)):
-                    shutil.copy2(
-                        os.path.join(audio_folder, audio_file),
-                        os.path.join(audio_backup_folder, audio_file)
-                    )
-            
-            app.logger.info(f"Se han respaldado {len(existing_audio_files)} archivos de audio en {audio_backup_folder}")
-        
-        # Cerrar la conexión actual a la base de datos antes de reemplazarla
-        db.session.remove()
-        
-        # Guardar el archivo subido como el nuevo archivo de base de datos
-        db_file.save(db_path)
-        
-        # Restaurar los archivos de audio para que no se pierdan durante la importación
-        os.makedirs(audio_folder, exist_ok=True)
-        for audio_file in existing_audio_files:
-            # Verificar si el archivo ya existe en el destino
-            if not os.path.exists(os.path.join(audio_folder, audio_file)):
-                # Copiar desde el respaldo si no existe
-                shutil.copy2(
-                    os.path.join(audio_backup_folder, audio_file),
-                    os.path.join(audio_folder, audio_file)
-                )
-        
-        # Registrar el éxito
-        app.logger.info(f"Base de datos importada exitosamente. Respaldo guardado en {backup_path}")
-        app.logger.info(f"Archivos de audio preservados en la importación. Respaldo en {audio_backup_folder}")
-        flash('Base de datos importada exitosamente. Se ha creado una copia de seguridad de la base de datos anterior y se han preservado los archivos de audio.', 'success')
-        
-        # Reiniciar la aplicación (esto no funciona en todas las configuraciones)
-        # En producción, esto debería mostrar instrucciones para reiniciar manualmente
-        return redirect(url_for('configuracion_exportar'))
-    
-    except Exception as e:
-        app.logger.error(f"Error importando la base de datos: {str(e)}")
-        flash(f'Error al importar la base de datos: {str(e)}', 'danger')
-        return redirect(url_for('configuracion_exportar'))
-
-@app.route('/reporte_mensual/<int:mes>/<int:anio>')
-def reporte_mensual(mes, anio):
-    # Obtener el primer y último día del mes
-    primer_dia = date(anio, mes, 1)
-    ultimo_dia = date(anio, mes, calendar.monthrange(anio, mes)[1])
-    
-    # Consultar horarios activos
-    sql_horarios_activos = """
-    SELECT hc.id, hc.nombre, hc.hora_inicio, hc.duracion, p.nombre
-    FROM horario_clase hc
-    LEFT JOIN profesor p ON hc.profesor_id = p.id
-    WHERE hc.id NOT IN (
-        SELECT horario_id FROM clase_realizada 
-        WHERE fecha >= :fecha_inicio AND fecha <= :fecha_fin
-    )
-    """
-    
-    # Consultar clases completadas
-    sql_clases_completadas = """
-    SELECT hc.id, hc.nombre, hc.hora_inicio, hc.duracion, p.nombre
-    FROM clase_realizada cr
-    JOIN horario_clase hc ON cr.horario_id = hc.id
-    LEFT JOIN profesor p ON cr.profesor_id = p.id
-    WHERE cr.fecha >= :fecha_inicio AND cr.fecha <= :fecha_fin
-    """
-    
-    # Ejecutar consultas
-    schedules_active = db.session.execute(sql_horarios_activos, {
-        'fecha_inicio': primer_dia, 
-        'fecha_fin': ultimo_dia
-    }).fetchall()
-    
-    schedules_completed = db.session.execute(sql_clases_completadas, {
-        'fecha_inicio': primer_dia, 
-        'fecha_fin': ultimo_dia
-    }).fetchall()
-    
-    # Resto del código para procesar los horarios...
-    horarios_procesados = []
-    
-    for row in schedules_active:
-        clase_id = row[0]
-        nombre_clase = row[1]
-        hora_inicio_str = row[2]
-        duracion_clase = row[3]
-        nombre_instructor = row[4] if row[4] else "No asignado"
-        realizada = False  # Al ser activa, no ha sido realizada
-
-        # Manejo adecuado cuando hora_inicio es None o inválido
-        if hora_inicio_str:
-            try:
-                hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M:%S').time() if hora_inicio_str else None
-                hora_inicio_str = hora_inicio_str.split(':')[0] + ':' + hora_inicio_str.split(':')[1] if hora_inicio else "N/A"
-                hora_fin_str = calcular_hora_fin(hora_inicio_str, duracion_clase)
-                horario_str = f"{hora_inicio_str} - {hora_fin_str}" if hora_inicio_str != "N/A" else "Horario no disponible"
-            except (ValueError, IndexError):
-                horario_str = "Horario no disponible"
-        else:
-            horario_str = "Horario no disponible"
-            
-        horarios_procesados.append({
-            'id': clase_id,
-            'nombre': nombre_clase,
-            'horario': horario_str,
-            'instructor': nombre_instructor,
-            'realizada': realizada
-        })
-    
-    for row in schedules_completed:
-        clase_id = row[0]
-        nombre_clase = row[1]
-        hora_inicio_str = row[2]
-        duracion_clase = row[3]
-        nombre_instructor = row[4] if row[4] else "No asignado"
-        realizada = True  # Ya fue realizada
-
-        # Manejo adecuado cuando hora_inicio es None o inválido
-        if hora_inicio_str:
-            try:
-                hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M:%S').time() if hora_inicio_str else None
-                hora_inicio_str = hora_inicio_str.split(':')[0] + ':' + hora_inicio_str.split(':')[1] if hora_inicio else "N/A"
-                hora_fin_str = calcular_hora_fin(hora_inicio_str, duracion_clase)
-                horario_str = f"{hora_inicio_str} - {hora_fin_str}" if hora_inicio_str != "N/A" else "Horario no disponible"
-            except (ValueError, IndexError):
-                horario_str = "Horario no disponible"
-        else:
-            horario_str = "Horario no disponible"
-            
-        horarios_procesados.append({
-            'id': clase_id,
-            'nombre': nombre_clase,
-            'horario': horario_str,
-            'instructor': nombre_instructor,
-            'realizada': realizada
-        })
-    
-    return render_template('reporte_mensual.html', 
-                          mes=mes, 
-                          anio=anio, 
-                          nombre_mes=calendar.month_name[mes],
-                          horarios=horarios_procesados)
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
-
-@app.template_filter('format_hora')
-def format_hora(hora):
-    """Convierte cualquier formato de hora a HH:MM"""
-    if not hora:
-        return "N/A"
-    
-    # Si es objeto time, formatear directamente
-    if isinstance(hora, time):
-        return hora.strftime('%H:%M')
-    
-    # Si es string, extraer solo HH:MM
-    if isinstance(hora, str) and ':' in hora:
-        partes = hora.split(':')
-        if len(partes) >= 2:
-            try:
-                return f"{int(partes[0]):02d}:{int(partes[1]):02d}"
-            except ValueError:
-                pass
-    
-    # Si todo falla, devolver el valor original
-    return hora
-
-def convertir_hora_con_microsegundos(valor_hora):
-    """
-    Convierte una hora en formato string a objeto time, manejando varios formatos incluyendo los que tienen microsegundos.
-    
-    Args:
-        valor_hora: El valor de hora a convertir (string o time)
-        
-    Returns:
-        Objeto time o None si no se puede convertir
-    """
-    if valor_hora is None:
-        return None
-        
-    # Si ya es un objeto time, devolverlo directamente
-    if isinstance(valor_hora, time):
-        return valor_hora
-        
-    # Si es string, intentar convertir
-    if isinstance(valor_hora, str):
-        # Eliminar parte de microsegundos si existe
-        if '.' in valor_hora:
-            valor_hora = valor_hora.split('.')[0]
-            
-        # Intentar varios formatos
-        for formato in ['%H:%M:%S', '%H:%M']:
-            try:
-                return datetime.strptime(valor_hora, formato).time()
-            except ValueError:
-                continue
-                
-    # Si todas las conversiones fallan
-    print(f"ERROR: No se pudo convertir {valor_hora} a objeto time")
-    return None
