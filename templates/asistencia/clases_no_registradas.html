@@ -60,11 +60,11 @@
                                         <label class="form-check-label" for="seleccionar-todas">Seleccionar</label>
                                     </div>
                                 </th>
-                                <th>Fecha</th>
-                                <th>Clase</th>
-                                <th>Horario</th>
-                                <th>Profesor</th>
-                                <th>Tipo</th>
+                                <th class="sortable" data-sort="fecha">Fecha <i class="fas fa-sort"></i></th>
+                                <th class="sortable" data-sort="clase">Clase <i class="fas fa-sort"></i></th>
+                                <th class="sortable" data-sort="horario">Horario <i class="fas fa-sort"></i></th>
+                                <th class="sortable" data-sort="profesor">Profesor <i class="fas fa-sort"></i></th>
+                                <th class="sortable" data-sort="tipo">Tipo <i class="fas fa-sort"></i></th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -78,7 +78,20 @@
                                 </td>
                                 <td>{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
                                 <td>{{ clase.horario.nombre }}</td>
-                                <td>{{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str() }}</td>
+                                <td>
+                                    {% if clase.horario.hora_inicio %}
+                                        {% if clase.horario.hora_inicio is string %}
+                                            {{ clase.horario.hora_inicio }} - {{ clase.horario.hora_fin_str }}
+                                        {% else %}
+                                            {{ clase.horario.hora_inicio.strftime('%H:%M') }} - {{ clase.horario.hora_fin_str }}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-danger">Horario no disponible</span>
+                                        <a href="{{ url_for('editar_horario', id=clase.horario.id) }}" class="btn btn-sm btn-outline-danger ms-2">
+                                            <i class="fas fa-edit"></i> Corregir
+                                        </a>
+                                    {% endif %}
+                                </td>
                                 <td>{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}</td>
                                 <td>
                                     <span class="badge 
@@ -153,34 +166,131 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Script ultra-simple para ordenar columnas -->
 <script>
-    // Script para seleccionar/deseleccionar todas las clases
+    // NOTA: Este script se ejecutará ahora porque hemos agregado el bloque scripts en base.html
+    console.log('SCRIPT DE ORDENAMIENTO VERIFICABLE - CLASES NO REGISTRADAS');
+    
+    // Ejecutar cuando el documento esté listo
     document.addEventListener('DOMContentLoaded', function() {
-        const selectAllCheckbox = document.getElementById('seleccionar-todas');
-        const claseCheckboxes = document.querySelectorAll('.clase-checkbox');
+        console.log('DOM CARGADO - Aplicando ordenamiento');
         
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                const isChecked = this.checked;
-                
-                claseCheckboxes.forEach(checkbox => {
-                    checkbox.checked = isChecked;
-                });
-            });
-        }
+        // Obtener todos los encabezados ordenables
+        var headers = document.querySelectorAll('th.sortable');
+        console.log('Encabezados ordenables encontrados:', headers.length);
         
-        // Verificar que haya clases seleccionadas antes de enviar el formulario
-        const formularioClases = document.getElementById('formulario-clases');
-        if (formularioClases) {
-            formularioClases.addEventListener('submit', function(e) {
-                const haySeleccionadas = Array.from(claseCheckboxes).some(checkbox => checkbox.checked);
+        // Variable para mantener el estado del ordenamiento
+        var currentSort = {
+            column: null,
+            direction: 'asc'
+        };
+        
+        // Agregar evento click a cada encabezado
+        headers.forEach(function(header) {
+            header.addEventListener('click', function() {
+                var column = this.getAttribute('data-sort');
+                console.log('Click en columna:', column);
                 
-                if (!haySeleccionadas) {
-                    e.preventDefault();
-                    alert('Por favor, seleccione al menos una clase para registrar.');
+                // Determinar dirección
+                var direction = 'asc';
+                if (currentSort.column === column) {
+                    direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
                 }
+                
+                // Actualizar estado
+                currentSort.column = column;
+                currentSort.direction = direction;
+                
+                // Actualizar iconos
+                headers.forEach(function(h) {
+                    var icon = h.querySelector('i');
+                    icon.className = 'fas fa-sort';
+                    h.classList.remove('active-sort');
+                });
+                
+                // Resaltar el encabezado activo
+                this.classList.add('active-sort');
+                var icon = this.querySelector('i');
+                icon.className = direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                
+                // Ordenar filas
+                var tbody = document.querySelector('table.table tbody');
+                var rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                // Función para obtener el valor de una celda
+                function getCellValue(row, index) {
+                    return row.children[index].textContent.trim();
+                }
+                
+                // Obtener índice de celda según la columna
+                var cellIndex;
+                switch(column) {
+                    case 'fecha': cellIndex = 1; break;
+                    case 'clase': cellIndex = 2; break;
+                    case 'horario': cellIndex = 3; break;
+                    case 'profesor': cellIndex = 4; break;
+                    case 'tipo': cellIndex = 5; break;
+                    default: cellIndex = 1;
+                }
+                
+                // Ordenar filas
+                rows.sort(function(rowA, rowB) {
+                    var valA = getCellValue(rowA, cellIndex);
+                    var valB = getCellValue(rowB, cellIndex);
+                    
+                    // Procesamiento especial para fechas (formato dd/mm/yyyy)
+                    if (column === 'fecha') {
+                        var partsA = valA.split('/');
+                        var partsB = valB.split('/');
+                        if (partsA.length === 3 && partsB.length === 3) {
+                            // Convertir a formato YYYY-MM-DD para comparación
+                            valA = new Date(partsA[2], partsA[1]-1, partsA[0]);
+                            valB = new Date(partsB[2], partsB[1]-1, partsB[0]);
+                        }
+                    }
+                    
+                    // Comparar valores
+                    if (valA < valB) return direction === 'asc' ? -1 : 1;
+                    if (valA > valB) return direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                
+                // Reordenar filas en el DOM
+                rows.forEach(function(row) {
+                    tbody.appendChild(row);
+                });
+                
+                console.log('Tabla ordenada correctamente');
             });
-        }
+        });
+        
+        console.log('Ordenamiento inicializado correctamente');
     });
 </script>
+
+<style>
+    /* Estilos para columnas ordenables */
+    th.sortable {
+        cursor: pointer !important; 
+        position: relative;
+    }
+    
+    th.sortable i {
+        margin-left: 5px;
+        transition: color 0.2s;
+    }
+    
+    th.sortable:hover {
+        background-color: #32383e !important;
+    }
+    
+    th.sortable.active-sort {
+        background-color: #3e454d !important;
+        border-bottom: 2px solid #ffc107 !important;
+    }
+    
+    th.sortable.active-sort i {
+        color: #ffc107;
+    }
+</style>
 {% endblock %} 
