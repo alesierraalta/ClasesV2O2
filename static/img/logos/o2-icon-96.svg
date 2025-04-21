@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- Background -->
+  <rect width="96" height="96" rx="16" fill="#ffffff"/>
+  
+  <!-- Oval shape with number 2 -->
+  <g transform="translate(4, 4) scale(0.44)">
+    <ellipse cx="100" cy="100" rx="90" ry="75" fill="none" stroke="#1a4ea0" stroke-width="14"/>
+    <ellipse cx="100" cy="100" rx="66" ry="54" fill="none" stroke="#1a4ea0" stroke-width="14"/>
+    <!-- Number 2 -->
+    <path d="M128,140H74v-12l34-34c5-5,8-9,8-14c0-7-5-12-12-12s-12,5-12,12H76c0-16,13-28,28-28s28,12,28,28c0,8-4,16-11,22l-25,26h32V140z" fill="#1a4ea0"/>
+  </g>
+</svg> 

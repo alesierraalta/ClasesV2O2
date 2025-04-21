@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Subida de Audio (Versión Simple)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #progress {
+            height: 20px;
+            margin-top: 10px;
+            background-color: #f3f3f3;
+            border-radius: 4px;
+            display: none;
+        }
+        #progress-bar {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Subida de Audio (Versión Simple)</h1>
+    
+    <div class="container">
+        <input type="file" id="audioFile" accept="audio/*">
+        <button id="uploadBtn">Subir Audio</button>
+        <div id="progress">
+            <div id="progress-bar">0%</div>
+        </div>
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('audioFile');
+            const resultDiv = document.getElementById('result');
+            const progressDiv = document.getElementById('progress');
+            const progressBar = document.getElementById('progress-bar');
+            
+            if (fileInput.files.length === 0) {
+                resultDiv.innerHTML = '<div class="error">No se seleccionó ningún archivo</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio', file);
+            
+            resultDiv.innerHTML = '<div>Preparando archivo...</div>';
+            progressDiv.style.display = 'block';
+            
+            // Crear un objeto XMLHttpRequest para mostrar el progreso
+            const xhr = new XMLHttpRequest();
+            
+            // CAMBIO AQUÍ: Usar la ruta correcta del blueprint
+            xhr.open('POST', '/asistencia/audio/upload/5', true);
+            
+            // Mostrar progreso
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = Math.round(percentComplete) + '%';
+                }
+            };
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            resultDiv.innerHTML = `
+                                <div class="success">¡Archivo subido correctamente!</div>
+                                <div>Ruta: ${data.file_path}</div>
+                                <div><audio controls src="${data.file_path}"></audio></div>
+                            `;
+                        } else {
+                            resultDiv.innerHTML = `<div class="error">Error: ${data.error || 'Desconocido'}</div>`;
+                        }
+                    } catch (e) {
+                        resultDiv.innerHTML = `<div class="error">Error al procesar respuesta: ${e.message}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Error del servidor: ${xhr.status}</div>`;
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        resultDiv.innerHTML += `<div>${response.error || 'Sin detalles'}</div>`;
+                    } catch(e) {
+                        resultDiv.innerHTML += `<div>Respuesta: ${xhr.responseText.substring(0, 100)}</div>`;
+                    }
+                }
+            };
+            
+            xhr.onerror = function() {
+                resultDiv.innerHTML = '<div class="error">Error de conexión</div>';
+            };
+            
+            xhr.send(formData);
+        });
+    </script>
+</body>
+</html> 

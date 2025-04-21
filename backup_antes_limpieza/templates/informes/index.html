@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Informes - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-4">
+        <h1 class="display-5 fw-bold text-primary">
+            <i class="fas fa-chart-bar me-2"></i> Generación de Informes
+        </h1>
+        <p class="lead text-muted">Selecciona un tipo de informe para analizar datos y generar reportes</p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                                Clases este mes</div>
+                            <div class="h5 mb-0 fw-bold">{{ stats.clases_mes if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                Alumnos este mes</div>
+                            <div class="h5 mb-0 fw-bold">{{ stats.alumnos_mes if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                Clases con retraso</div>
+                            <div class="h5 mb-0 fw-bold">{{ stats.retrasos_mes if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-5 border-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-danger text-uppercase mb-1">
+                                Total a pagar</div>
+                            <div class="h5 mb-0 fw-bold">${{ stats.pago_total|round(2) if stats else '--' }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Reportes -->
+    <div class="row">
+        <!-- Informe Mensual - Tarjeta principal -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3 bg-primary text-white">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-file-invoice-dollar me-2"></i> Informe Mensual</h5>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <div class="mb-4">
+                        <p class="text-muted">Genera un informe detallado con cálculo de pagos a profesores, estadísticas de asistencia y gráficos de rendimiento por mes.</p>
+                                        </div>
+                    <div class="mt-auto">
+                        <a href="{{ url_for('informe_mensual') }}" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-file-alt me-2"></i> Generar Informe Mensual
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generación Rápida -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4 h-100">
+                <div class="card-header py-3 bg-success text-white">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-bolt me-2"></i> Generación Rápida</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Acceso rápido a los informes más comunes:</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-grid">
+                                <a href="#" class="btn btn-outline-primary py-3" onclick="generarInformeRapido('mes_actual')">
+                                    <i class="fas fa-calendar-day d-block mb-2 fs-4"></i>
+                                    Mes Actual
+                                    <div class="small">Generar informe del mes en curso</div>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-grid">
+                                <a href="#" class="btn btn-outline-primary py-3" onclick="generarInformeRapido('mes_anterior')">
+                                    <i class="fas fa-calendar-minus d-block mb-2 fs-4"></i>
+                                    Mes Anterior
+                                    <div class="small">Generar informe del mes pasado</div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para generar informes rápidos
+    function generarInformeRapido(tipo) {
+    let url = "{{ url_for('informe_mensual') }}?";
+    const fecha = new Date();
+    let mes, anio;
+    
+    if (tipo === 'mes_actual') {
+        mes = fecha.getMonth() + 1; // En JavaScript los meses empiezan en 0
+        anio = fecha.getFullYear();
+    } else if (tipo === 'mes_anterior') {
+        fecha.setMonth(fecha.getMonth() - 1);
+        mes = fecha.getMonth() + 1;
+        anio = fecha.getFullYear();
+    }
+    
+    url += `mes=${mes}&anio=${anio}&auto=1`;
+    window.location.href = url;
+    }
+</script>
+{% endblock %} 

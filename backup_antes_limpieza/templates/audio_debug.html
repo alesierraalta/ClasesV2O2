@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Depuración de Problemas de Audio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .panel {
+            background: #f5f5f5;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        
+        h2 {
+            color: #333;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        
+        code {
+            background: #e8e8e8;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        #result {
+            min-height: 50px;
+            padding: 10px;
+            margin-top: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Herramienta de Depuración de Problemas de Audio</h1>
+    <p>Esta herramienta ayuda a diagnosticar problemas con la carga de archivos de audio.</p>
+    
+    <div class="panel">
+        <h2>Estado Actual</h2>
+        <table>
+            <tr>
+                <th>Componente</th>
+                <th>Estado</th>
+                <th>Detalles</th>
+            </tr>
+            <tr>
+                <td>Directorios de carga</td>
+                <td>
+                    {% if dirs_ok %}
+                        <span class="success">OK</span>
+                    {% else %}
+                        <span class="error">Error</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not dirs_ok %}
+                        <ul>
+                            {% for error in dir_errors %}
+                                <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        Directorios verificados y con permisos correctos
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Configuración de la aplicación</td>
+                <td>
+                    {% if app_config_ok %}
+                        <span class="success">OK</span>
+                    {% else %}
+                        <span class="error">Error</span>
+                    {% endif %}
+                </td>
+                <td>{{ app_config_message }}</td>
+            </tr>
+            <tr>
+                <td>JavaScript</td>
+                <td>
+                    <span id="js-status">Verificando...</span>
+                </td>
+                <td id="js-details">Ejecutando pruebas...</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="panel">
+        <h2>Prueba Directa del Backend</h2>
+        <p>Esta prueba verifica si el backend puede crear y guardar archivos directamente sin pasar por el frontend.</p>
+        <button id="testBackendBtn">Ejecutar Prueba Directa</button>
+        <div id="backend-result" class="result">Resultado aparecerá aquí...</div>
+    </div>
+    
+    <div class="panel">
+        <h2>Prueba de Formulario HTML Simple</h2>
+        <p>Esta prueba envía un archivo directamente mediante un formulario sin usar JavaScript.</p>
+        <form id="simpleForm" action="/asistencia/upload_audio/5" method="POST" enctype="multipart/form-data" target="resultFrame">
+            <input type="file" name="audio" accept="audio/*">
+            <button type="submit">Enviar Formulario</button>
+        </form>
+        <iframe name="resultFrame" id="resultFrame" style="width:100%; height:100px; border:1px solid #ccc; margin-top:10px;"></iframe>
+    </div>
+    
+    <div class="panel">
+        <h2>Prueba de Fetch API</h2>
+        <p>Esta prueba usa la API Fetch moderna para subir un archivo.</p>
+        <input type="file" id="fetchFileInput" accept="audio/*">
+        <button id="testFetchBtn">Subir con Fetch</button>
+        <div id="fetch-result" class="result">Resultado aparecerá aquí...</div>
+    </div>
+    
+    <div class="panel">
+        <h2>Correcciones Recomendadas</h2>
+        <div id="recommendations">
+            <div class="warning">
+                <strong>Nota:</strong> Las recomendaciones específicas aparecerán aquí después de ejecutar las pruebas.
+            </div>
+            
+            <h3>Problemas Comunes:</h3>
+            <ul>
+                <li><strong>AudioVisualizer ya definido:</strong> Asegúrate de que <code>audio-visualizer.js</code> solo se incluya una vez en tu HTML.</li>
+                <li><strong>Error "Cannot read properties of null":</strong> Verifica que los elementos del DOM existan antes de acceder a ellos en <code>audio-controls.js</code>.</li>
+                <li><strong>Error 400 en la carga:</strong> Verifica que el formulario tenga el atributo <code>enctype="multipart/form-data"</code> y el campo se llame <code>audio</code>.</li>
+                <li><strong>Error HTML en vez de JSON:</strong> La respuesta del servidor está devolviendo HTML (probablemente una página de error) en lugar de JSON.</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Verificar estado de JavaScript
+        function testJsStatus() {
+            const jsStatus = document.getElementById('js-status');
+            const jsDetails = document.getElementById('js-details');
+            
+            // Prueba 1: Verificar que podemos acceder al DOM
+            try {
+                document.querySelector('body');
+                jsStatus.textContent = 'OK';
+                jsStatus.className = 'success';
+                jsDetails.textContent = 'JavaScript funciona correctamente';
+            } catch(e) {
+                jsStatus.textContent = 'Error';
+                jsStatus.className = 'error';
+                jsDetails.textContent = `Error al acceder al DOM: ${e.message}`;
+                return;
+            }
+        }
+        
+        // Prueba del backend directo
+        document.getElementById('testBackendBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.textContent = 'Ejecutando prueba...';
+            
+            fetch('/test/direct-upload/5')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        resultDiv.innerHTML = `<span class="success">¡Éxito!</span> ${data.message}<br>Archivo: ${data.filename}<br>Ruta: ${data.filepath}<br>Tamaño: ${data.size} bytes`;
+                    } else {
+                        resultDiv.innerHTML = `<span class="error">Error:</span> ${data.error}`;
+                    }
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<span class="error">Error de conexión:</span> ${error.message}`;
+                });
+        });
+        
+        // Prueba con Fetch API
+        document.getElementById('testFetchBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('fetchFileInput');
+            const resultDiv = document.getElementById('fetch-result');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.innerHTML = '<span class="error">Por favor selecciona un archivo primero</span>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio', file);
+            
+            resultDiv.textContent = 'Subiendo archivo...';
+            
+            fetch('/asistencia/upload_audio/5', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Error ${response.status}: ${text.substring(0, 200)}...`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                resultDiv.innerHTML = `<span class="success">¡Éxito!</span> ${data.message}<br>Archivo: ${data.filename}`;
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<span class="error">Error:</span> ${error.message}`;
+            });
+        });
+        
+        // Ejecutar pruebas al cargar la página
+        window.addEventListener('DOMContentLoaded', function() {
+            testJsStatus();
+        });
+    </script>
+</body>
+</html> 

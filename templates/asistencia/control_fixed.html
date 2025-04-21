@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Control de Asistencia{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Control de Asistencia - {{ hoy.strftime('%d/%m/%Y') }}</h1>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>Clases Pendientes</h5>
+                </div>
+                <div class="card-body">
+                    {% if horarios_pendientes %}
+                        <div class="list-group">
+                            {% for horario in horarios_pendientes %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">{{ horario.nombre }}</h5>
+                                        <small>{{ horario.hora_inicio.strftime('%H:%M') }}</small>
+                                    </div>
+                                    <p class="mb-1">Profesor: {{ horario.profesor }}</p>
+                                    <p class="mb-1">Tipo: {{ horario.tipo_clase }}</p>
+                                    
+                                    {% if temp_audio_files and temp_audio_files.get(horario.id) %}
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <h5>Audio grabado</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <audio controls class="w-100">
+                                                <source src="{{ url_for('static', filename='audio/temp_horario_' + horario.id|string + '.mp3') }}" type="audio/mp3">
+                                                <source src="{{ url_for('static', filename='audio/temp_horario_' + horario.id|string + '.wav') }}" type="audio/wav">
+                                                <source src="{{ url_for('static', filename='audio/temp_horario_' + horario.id|string + '.ogg') }}" type="audio/ogg">
+                                                Tu navegador no soporta la reproducción de audio.
+                                            </audio>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('registrar_asistencia', horario_id=horario.id) }}" class="btn btn-primary btn-sm">Registrar Asistencia</a>
+                                        <button class="btn btn-info btn-sm" onclick="iniciarGrabacion({{ horario.id }})">Grabar Audio</button>
+                                        <button class="btn btn-danger btn-sm" onclick="detenerGrabacion({{ horario.id }})" style="display: none;" id="btn-detener-{{ horario.id }}">Detener Grabación</button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No hay clases pendientes para hoy.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5>Clases Registradas</h5>
+                </div>
+                <div class="card-body">
+                    {% if clases_realizadas %}
+                        <div class="list-group">
+                            {% for clase in clases_realizadas %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">{{ clase.horario.nombre }}</h5>
+                                        <small>
+                                            {% if clase.hora_llegada_profesor %}
+                                                {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                            {% else %}
+                                                No registrada
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <p class="mb-1">Profesor: {{ clase.profesor }}</p>
+                                    <p class="mb-1">Alumnos: {{ clase.cantidad_alumnos }}</p>
+                                    <p class="mb-1">Estado: {{ clase.puntualidad() }}</p>
+                                    
+                                    {% if clase.audio_file %}
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <h5>Audio grabado</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <audio controls class="w-100">
+                                                <source src="{{ url_for('static', filename='audio/' + clase.audio_file) }}" type="audio/mpeg">
+                                                Tu navegador no soporta la reproducción de audio.
+                                            </audio>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('editar_asistencia', id=clase.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                                        <a href="{{ url_for('eliminar_asistencia', id=clase.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este registro?')">Eliminar</a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No hay clases registradas para hoy.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Inicio - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <h1>Bienvenido al Sistema</h1>
+    <p>Administra profesores, horarios y asistencias de manera eficiente</p>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Clases programadas para hoy - {{ hoy.strftime('%d/%m/%Y') }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if horarios_hoy %}
+                    <p>Hay {{ horarios_hoy|length }} clases programadas para hoy.</p>
+                    {% else %}
+                    <p>No hay clases programadas para hoy.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

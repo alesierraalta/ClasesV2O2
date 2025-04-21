@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Asistencia - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Historial de Asistencia</h2>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Filtros</h4>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('historial_asistencia') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label for="fecha_inicio" class="form-label">Desde</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="fecha_fin" class="form-label">Hasta</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="profesor_id" class="form-label">Profesor</label>
+                    <select class="form-select" id="profesor_id" name="profesor_id">
+                        <option value="todos" {% if profesor_id == 'todos' or not profesor_id %}selected{% endif %}>Todos los profesores</option>
+                        {% for profesor in profesores %}
+                        <option value="{{ profesor.id }}" {% if profesor_id|int == profesor.id %}selected{% endif %}>{{ profesor.nombre }} {{ profesor.apellido }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i> Filtrar
+                    </button>
+                    <a href="{{ url_for('historial_asistencia') }}" class="btn btn-secondary">
+                        <i class="fas fa-redo me-1"></i> Reiniciar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Resultados -->
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0">Resultados ({{ clases_realizadas|length }} clases encontradas)</h4>
+        </div>
+        <div class="card-body p-0">
+            {% if clases_realizadas %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Clase</th>
+                            <th scope="col">Horario</th>
+                            <th scope="col">Profesor</th>
+                            <th scope="col">Hora de llegada</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Alumnos</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for clase in clases_realizadas %}
+                        <tr>
+                            <td>{{ clase.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ clase.horario.nombre }}</td>
+                            <td>{{ clase.horario.hora_inicio.strftime('%H:%M') }}</td>
+                            <td>{{ clase.profesor.nombre }} {{ clase.profesor.apellido }}</td>
+                            <td>
+                                {% if clase.hora_llegada_profesor %}
+                                    {{ clase.hora_llegada_profesor.strftime('%H:%M') }}
+                                    <span class="badge {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ clase.puntualidad() }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">No registrado</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ clase.estado() }}</td>
+                            <td>{{ clase.cantidad_alumnos }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('editar_asistencia', id=clase.id) }}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('eliminar_asistencia', id=clase.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Está seguro que desea eliminar este registro?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="forzarEliminacion({{ clase.id }})" title="Usar este botón solo si la eliminación normal no funciona">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info m-3">
+                No se encontraron registros para los filtros seleccionados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('control_asistencia') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-1"></i> Volver al Control de Asistencia
+        </a>
+    </div>
+</div>
+
+<!-- Script para forzar eliminación -->
+<script>
+    // Función para forzar la eliminación de clases
+    function forzarEliminacion(id) {
+        if (confirm('¿Está seguro que desea FORZAR la eliminación de esta clase? Esta acción no se puede deshacer.')) {
+            fetch(`/diagnostico/eliminar_clase/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.resultado && data.resultado.includes('exitosamente')) {
+                        alert('Clase eliminada con éxito');
+                        // Recargar la página después de eliminar
+                        window.location.reload();
+                    } else {
+                        alert('Error al eliminar la clase: ' + JSON.stringify(data));
+                    }
+                })
+                .catch(error => {
+                    alert('Error en la petición: ' + error);
+                });
+        }
+    }
+</script>
+{% endblock %} 

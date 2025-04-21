@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Test de Importación - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Test de Importación de Excel</h2>
+    
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Importar archivo Excel</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('importar_asistencia') }}" method="POST" enctype="multipart/form-data">
+                <!-- Token CSRF incluido como campo oculto -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-3">
+                    <label for="tipo_clase" class="form-label">Tipo de clase:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_clase" id="tipo_move" value="MOVE" checked>
+                        <label class="form-check-label" for="tipo_move">MOVE</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_clase" id="tipo_ride" value="RIDE">
+                        <label class="form-check-label" for="tipo_ride">RIDE</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_clase" id="tipo_box" value="BOX">
+                        <label class="form-check-label" for="tipo_box">BOX</label>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="file" class="form-label">Archivo Excel:</label>
+                    <input type="file" class="form-control" id="file" name="file" accept=".xlsx, .xls">
+                    <div class="form-text">Seleccione un archivo Excel (.xlsx, .xls)</div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Importar</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <h5>Formato esperado del archivo Excel:</h5>
+        <ul class="list-group">
+            <li class="list-group-item">Intructor (Nombre del profesor)</li>
+            <li class="list-group-item">Fecha (DD/MM/YYYY)</li>
+            <li class="list-group-item">Hora (Hora de la clase)</li>
+            <li class="list-group-item">Clase (Nombre de la clase)</li>
+            <li class="list-group-item">Asistentes (Cantidad de alumnos)</li>
+            <li class="list-group-item">Inicio (Opcional - Hora real de inicio)</li>
+            <li class="list-group-item">Observaciones (Opcional - Notas adicionales)</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

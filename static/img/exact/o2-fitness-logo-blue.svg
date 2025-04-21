@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300">
+  <!-- Texto O2FITNESS -->
+  <text x="250" y="150" font-family="Arial, sans-serif" font-size="80" font-weight="bold" letter-spacing="-1" fill="#1a4ea0" text-anchor="middle">O₂FITNESS</text>
+  <!-- Texto CLUB -->
+  <text x="250" y="220" font-family="Arial, sans-serif" font-size="60" font-weight="bold" letter-spacing="2" fill="#1a4ea0" text-anchor="middle">CLUB</text>
+</svg> 

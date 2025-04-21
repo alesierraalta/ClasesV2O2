@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Profesores - Sistema de Gestión de Clases{% endblock %}
+
+{% block styles %}
+<style>
+    /* Estilos para mejorar la experiencia móvil */
+    @media (max-width: 768px) {
+        .checkbox-column {
+            width: 44px;
+        }
+        
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .action-buttons .btn {
+            padding: 0.375rem 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        /* Ajustar tamaño para que quepan los botones */
+        .actions-column {
+            min-width: 95px;
+        }
+        
+        /* Hacer que el botón de eliminar seleccionados sea más visible */
+        #btnEliminarSeleccionados {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            border-radius: 50px;
+            padding: 10px 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+    }
+    
+    /* Resaltar filas seleccionadas */
+    tr.selected {
+        background-color: rgba(0, 123, 255, 0.1) !important;
+    }
+    
+    /* Mejorar visibilidad del scroll horizontal en móviles */
+    .table-responsive {
+        position: relative;
+    }
+    
+    .table-responsive::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.1));
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gestión de Profesores</h2>
+        <div class="d-none d-md-block">
+            <button id="btnEliminarSeleccionados" class="btn btn-danger me-2" style="display:none">
+                <i class="fas fa-trash me-1"></i> Eliminar Seleccionados <span class="badge bg-light text-dark count-selected">0</span>
+            </button>
+            <a href="{{ url_for('nuevo_profesor') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Nuevo Profesor
+            </a>
+        </div>
+        <div class="d-md-none">
+            <div class="btn-group" role="group">
+                <button id="btnEliminarSeleccionadosMobile" class="btn btn-danger" style="display:none">
+                    <i class="fas fa-trash"></i> <span class="count-selected">0</span>
+                </button>
+                <a href="{{ url_for('nuevo_profesor') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3 d-md-none">
+        <div class="alert alert-info p-2">
+            <small><i class="fas fa-info-circle me-1"></i> Desliza horizontalmente para ver todos los datos</small>
+        </div>
+    </div>
+
+    {% if profesores %}
+    <form id="formEliminarProfesores" action="{{ url_for('eliminar_varios_profesores') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col" class="checkbox-column">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkboxTodos">
+                                    </div>
+                                </th>
+                                <th scope="col" class="d-none d-md-table-cell">ID</th>
+                                <th scope="col">Nombre</th>
+                                <th scope="col">Apellido</th>
+                                <th scope="col" class="d-none d-lg-table-cell">Tarifa</th>
+                                <th scope="col" class="d-none d-md-table-cell">Teléfono</th>
+                                <th scope="col" class="d-none d-lg-table-cell">Email</th>
+                                <th scope="col" class="actions-column">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for profesor in profesores %}
+                            <tr>
+                                <td class="checkbox-column">
+                                    <div class="form-check">
+                                        <input class="form-check-input checkbox-profesor" type="checkbox" name="profesores_ids[]" value="{{ profesor.id }}">
+                                    </div>
+                                </td>
+                                <td class="d-none d-md-table-cell">{{ profesor.id }}</td>
+                                <td>{{ profesor.nombre }}</td>
+                                <td>{{ profesor.apellido }}</td>
+                                <td class="d-none d-lg-table-cell">${{ profesor.tarifa_por_clase|round(2) }}</td>
+                                <td class="d-none d-md-table-cell">{{ profesor.telefono or 'N/A' }}</td>
+                                <td class="d-none d-lg-table-cell">{{ profesor.email or 'N/A' }}</td>
+                                <td class="actions-column">
+                                    <div class="btn-group action-buttons" role="group">
+                                        <a href="{{ url_for('editar_profesor', id=profesor.id) }}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('eliminar_profesor', id=profesor.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Está seguro que desea eliminar este profesor?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No hay profesores registrados aún. <a href="{{ url_for('nuevo_profesor') }}" class="alert-link">Registre un nuevo profesor</a>.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalConfirmacionLabel">Confirmar eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        ¿Está seguro que desea eliminar los <span id="countProfesores">0</span> profesores seleccionados? Esta acción no se puede deshacer.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmarEliminacion">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxTodos = document.getElementById('checkboxTodos');
+    const checkboxes = document.querySelectorAll('.checkbox-profesor');
+    const btnEliminarSeleccionados = document.getElementById('btnEliminarSeleccionados');
+    const btnEliminarSeleccionadosMobile = document.getElementById('btnEliminarSeleccionadosMobile');
+    const formEliminarProfesores = document.getElementById('formEliminarProfesores');
+    const modalConfirmacion = new bootstrap.Modal(document.getElementById('modalConfirmacion'));
+    const btnConfirmarEliminacion = document.getElementById('btnConfirmarEliminacion');
+    const countSpans = document.querySelectorAll('.count-selected');
+    const countProfesores = document.getElementById('countProfesores');
+    
+    // Seleccionar/deseleccionar todos
+    checkboxTodos.addEventListener('change', function() {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = checkboxTodos.checked;
+            actualizarEstiloFila(checkbox);
+        });
+        actualizarBotonEliminar();
+    });
+    
+    // Actualizar el estado del botón "Eliminar Seleccionados"
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            actualizarEstiloFila(this);
+            actualizarBotonEliminar();
+        });
+        
+        // También permitir hacer clic en la fila para seleccionar
+        checkbox.closest('tr').addEventListener('click', function(e) {
+            // No activar si se hace clic en un enlace, botón o en el propio checkbox
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                e.target.tagName === 'INPUT' || e.target.tagName === 'I' || 
+                e.target.closest('a') || e.target.closest('button')) {
+                return;
+            }
+            
+            const cb = this.querySelector('.checkbox-profesor');
+            cb.checked = !cb.checked;
+            actualizarEstiloFila(cb);
+            actualizarBotonEliminar();
+        });
+    });
+    
+    // Función para actualizar el estilo de la fila
+    function actualizarEstiloFila(checkbox) {
+        const fila = checkbox.closest('tr');
+        if (checkbox.checked) {
+            fila.classList.add('selected');
+        } else {
+            fila.classList.remove('selected');
+        }
+    }
+    
+    // Función para actualizar visibilidad del botón de eliminar
+    function actualizarBotonEliminar() {
+        const seleccionados = Array.from(checkboxes).filter(checkbox => checkbox.checked).length;
+        
+        // Actualizar contadores
+        countSpans.forEach(span => {
+            span.textContent = seleccionados;
+        });
+        countProfesores.textContent = seleccionados;
+        
+        // Mostrar/ocultar botones
+        if (seleccionados > 0) {
+            btnEliminarSeleccionados.style.display = 'inline-block';
+            btnEliminarSeleccionadosMobile.style.display = 'inline-block';
+        } else {
+            btnEliminarSeleccionados.style.display = 'none';
+            btnEliminarSeleccionadosMobile.style.display = 'none';
+        }
+        
+        // Actualizar estado del checkbox "Todos"
+        if (seleccionados === 0) {
+            checkboxTodos.checked = false;
+            checkboxTodos.indeterminate = false;
+        } else if (seleccionados === checkboxes.length) {
+            checkboxTodos.checked = true;
+            checkboxTodos.indeterminate = false;
+        } else {
+            checkboxTodos.checked = false;
+            checkboxTodos.indeterminate = true;
+        }
+    }
+    
+    // Mostrar modal de confirmación al hacer clic en "Eliminar Seleccionados"
+    btnEliminarSeleccionados.addEventListener('click', function() {
+        modalConfirmacion.show();
+    });
+    
+    btnEliminarSeleccionadosMobile.addEventListener('click', function() {
+        modalConfirmacion.show();
+    });
+    
+    // Enviar formulario al confirmar eliminación
+    btnConfirmarEliminacion.addEventListener('click', function() {
+        formEliminarProfesores.submit();
+    });
+});
+</script>
+{% endblock %} 

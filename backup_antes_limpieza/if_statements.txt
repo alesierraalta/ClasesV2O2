@@ -1,0 +1,39 @@
+138:                                {% if clases_no_registradas %}
+154:    {% if clases_no_registradas %}
+180:    {% if resumen_profesores %}
+217:                                    <div class="display-4 {% if total_retrasos.value > 0 %}text-warning{% else %}text-info{% endif %} mb-2">
+223:                                        {% if total_retrasos.value > 0 and total_clases.value > 0 %}
+295:                                            {% if datos.total_clases > 0 %}
+305:                                            {% if datos.total_retrasos > 0 %}
+328:                                                {% if clases_profesor %}
+351:                                                                    {% if clase.profesor_suplente %}
+362:                                                                    {% if clase.hora_llegada_profesor %}
+373:                                                                    {% if clase.hora_llegada_profesor %}
+374:                                                                        <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+389:                                                                    {% if clase.hora_llegada_profesor and clase.cantidad_alumnos == 0 %}
+397:                                                                    {% if clase.observaciones %}
+449:                        {% if clases_realizadas %}
+473:                                        {% if clase.profesor_suplente %}
+478:                                        {% if clase.profesor_suplente %}
+488:                                        {% if clase.hora_llegada_profesor %}
+499:                                        {% if clase.hora_llegada_profesor %}
+500:                                            <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+515:                                        {% if clase.hora_llegada_profesor and clase.cantidad_alumnos == 0 %}
+523:                                        {% if clase.observaciones %}
+599:                        {% if clases_no_registradas %}
+629:                                            {% if clase.tipo_clase == 'MOVE' %}
+736:                    {% if clases_no_registradas %}
+1114:                                {% if conteo_tipos is defined %}{{ conteo_tipos['MOVE'] }}{% else %}0{% endif %},
+1115:                                {% if conteo_tipos is defined %}{{ conteo_tipos['RIDE'] }}{% else %}0{% endif %},
+1116:                                {% if conteo_tipos is defined %}{{ conteo_tipos['BOX'] }}{% else %}0{% endif %},
+1117:                                {% if conteo_tipos is defined %}{{ conteo_tipos['OTRO'] }}{% else %}0{% endif %}
+1156:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['MOVE'] }}{% else %}0{% endif %},
+1157:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['RIDE'] }}{% else %}0{% endif %},
+1158:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['BOX'] }}{% else %}0{% endif %},
+1159:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['OTRO'] }}{% else %}0{% endif %}
+1260:        {% if conteo_no_registradas is defined %}
+1281:        {% if clases_realizadas is defined and clases_realizadas %}
+1288:            {% if clase.profesor_suplente %}"Suplente"{% elif clase.ausencia_profesor %}"Cancelada"{% else %}"Normal"{% endif %},
+1289:            {% if clase.hora_llegada_profesor %}"{{ clase.hora_llegada_profesor.strftime('%H:%M') }}"{% else %}"N/A"{% endif %},
+1290:            {% if clase.hora_llegada_profesor %}"{{ clase.puntualidad() }}"{% else %}"N/A"{% endif %},
+1306:        {% if clases_no_registradas is defined and clases_no_registradas %}

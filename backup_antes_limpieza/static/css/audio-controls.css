@@ -1,0 +1,201 @@
+/* Estilos para los controles de audio */
+
+/* Contenedor principal de audio */
+.audio-control {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+/* Botu00f3n de reproducciu00f3n grande */
+.audio-play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.audio-play-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Etiqueta de audio */
+.audio-label {
+    font-weight: 500;
+    display: block;
+    margin-bottom: 3px;
+}
+
+/* Enlace para reemplazar audio */
+.replace-audio-link {
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-decoration: underline;
+}
+
+.replace-audio-link:hover {
+    color: #495057;
+    text-decoration: none;
+}
+
+/* Formulario de subida de audio */
+.audio-upload-form {
+    width: 100%;
+}
+
+/* Barra de progreso */
+.progress {
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Botu00f3n de cancelar */
+.cancel-replace-btn {
+    margin-top: 5px;
+    font-size: 0.85rem;
+}
+
+/* Mensajes de carga */
+#uploadMessage {
+    margin-top: 8px;
+}
+
+/* Alertas */
+.alert {
+    padding: 0.5rem 0.75rem;
+    margin-top: 8px;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Mejoras responsivas */
+@media (max-width: 767.98px) {
+    .audio-control {
+        padding: 8px;
+    }
+    
+    .audio-play-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .audio-label {
+        font-size: 0.9rem;
+    }
+    
+    .replace-audio-link {
+        font-size: 0.8rem;
+    }
+    
+    .input-group {
+        flex-wrap: wrap;
+    }
+    
+    .input-group > .form-control {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .input-group > .btn {
+        border-radius: 4px;
+        width: 100%;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .audio-control .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .audio-play-btn {
+        margin-bottom: 10px;
+        margin-right: 0;
+        align-self: center;
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .audio-upload-form .input-group {
+        flex-direction: column;
+    }
+    
+    .audio-upload-form .input-group > * {
+        width: 100%;
+        border-radius: 4px !important;
+        margin-bottom: 5px;
+    }
+}
+
+/* Estilos para toasts */
+.toast-container {
+    z-index: 1050;
+}
+
+.toast {
+    min-width: 250px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 1 !important;
+    margin-bottom: 10px;
+}
+
+.toast .toast-header {
+    color: white;
+    padding: 0.5rem 0.75rem;
+}
+
+.toast .btn-close-white {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Estilos para el control de audio mejorado */
+.audio-control.has-audio .audio-play-btn {
+    background-color: #0d6efd;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.audio-control.has-audio .audio-play-btn:hover {
+    background-color: #0b5ed7;
+    transform: scale(1.05);
+}
+
+/* Mejora visual para inputs */
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Mejora los botones de carga */
+.upload-audio-btn {
+    transition: all 0.2s ease;
+}
+
+.upload-audio-btn:disabled {
+    opacity: 0.65;
+}
+
+/* Mejora los mensajes de alerta */
+.replace-audio-link:hover {
+    text-decoration: none !important;
+    color: #0d6efd !important;
+}

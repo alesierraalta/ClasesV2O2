@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Control de Asistencia - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Control de Asistencia - {{ hoy.strftime('%d/%m/%Y') }}</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Clases Programadas Pendientes</h4>
+                </div>
+                <div class="card-body">
+                    {% if horarios_pendientes %}
+                    <div class="list-group">
+                        {% for horario in horarios_pendientes %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">{{ horario.nombre }} {% if horario.clase_realizada and horario.clase_realizada.audio_file %}<span class="badge bg-info text-white ms-1"><i class="fas fa-volume-up"></i> Audio</span>{% endif %}</h5>
+                                    <p class="mb-1">
+                                        <i class="fas fa-clock me-1"></i> {{ horario.hora_inicio.strftime('%H:%M') }} - {{ horario.hora_fin_str() }}
+                                    </p>
+                                    <small>
+                                        <i class="fas fa-user me-1"></i> {{ horario.profesor.nombre }} {{ horario.profesor.apellido }}
+                                    </small>
+                                </div>
+                                <div class="d-flex flex-column">
+                                    <div class="audio-control" data-horario-id="{{ horario.id }}">
+                                        {% if horario.clase_realizada and horario.clase_realizada.audio_file %}
+                                            <div class="d-flex align-items-center">
+                                                <button class="btn btn-primary btn-lg audio-play-btn me-2" data-horario-id="{{ horario.id }}">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                                <div>
+                                                    <span class="audio-label">Audio de la clase</span>
+                                                    <a href="#" class="replace-audio-link small d-block" data-horario-id="{{ horario.id }}">Reemplazar audio</a>
+                                                </div>
+                                                <audio id="audio-{{ horario.id }}" class="d-none" data-horario-id="{{ horario.id }}">
+                                                    <source src="{{ url_for('audio_get', horario_id=horario.id) }}?t={{ current_timestamp|int }}" type="audio/mpeg">
+                                                </audio>
+                                            </div>
+                                            <script>document.querySelector('.audio-control[data-horario-id="{{ horario.id }}"]').classList.add('has-audio');</script>
+                                        {% else %}
+                                            <div class="audio-upload-form">
+                                                <div class="input-group input-group-responsive">
+                                                    <input type="file" id="audioUpload-{{ horario.id }}" name="audio" class="form-control" accept="audio/*" />
+                                                    <button type="button" class="btn btn-primary upload-audio-btn" data-horario-id="{{ horario.id }}">
+                                                        <i class="fas fa-upload"></i> Subir
+                                                    </button>
+                                                </div>
+                                                <small class="form-text text-muted d-block mb-2">Selecciona un archivo de audio (MP3, WAV, OGG)</small>
+                                                
+                                                <div id="progressBar-{{ horario.id }}" class="progress mt-1" style="display: none;">
+                                                    <div class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                                                </div>
+                                                <div id="uploadMessage-{{ horario.id }}" class="mt-2"></div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <a href="{{ url_for('registrar_asistencia', horario_id=horario.id) }}" class="btn btn-primary">
+                                        <i class="fas fa-clipboard-check me-1"></i> Registrar
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i> No hay clases pendientes por registrar para hoy.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Clases Registradas Hoy</h4>
+                </div>
+                <div class="card-body">
+                    {% if clases_realizadas %}
+                    <div class="list-group">
+                        {% for clase in clases_realizadas %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">{{ clase.horario.nombre }} {% if clase.audio_file %}<span class="badge bg-info text-white ms-1"><i class="fas fa-volume-up"></i> Audio</span>{% endif %}</h5>
+                                    <p class="mb-1">
+                                        <i class="fas fa-clock me-1"></i> {{ clase.horario.hora_inicio.strftime('%H:%M') }}
+                                        {% if clase.hora_llegada_profesor %}
+                                            <span class="badge {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning{% else %}bg-danger{% endif %}">
+                                                {{ clase.puntualidad() }} (Llegada: {{ clase.hora_llegada_profesor.strftime('%H:%M') }})
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Hora de llegada no registrada</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="mb-1">
+                                        <i class="fas fa-users me-1"></i> {{ clase.cantidad_alumnos }} alumnos
+                                    </p>
+                                    <small>
+                                        <i class="fas fa-user me-1"></i> {{ clase.profesor.nombre }} {{ clase.profesor.apellido }}
+                                    </small>
+                                </div>
+                                <div class="d-flex flex-column">
+                                    <div class="btn-group-vertical">
+                                        <a href="{{ url_for('editar_asistencia', id=clase.id) }}" class="btn btn-sm btn-warning mb-1">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </a>
+                                        <a href="{{ url_for('eliminar_asistencia', id=clase.id) }}" class="btn btn-sm btn-danger mb-1" onclick="return confirm('¿Está seguro que desea eliminar este registro?')">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger mb-1" onclick="forzarEliminacion({{ clase.id }})" title="Usar este botón solo si la eliminación normal no funciona">
+                                            <i class="fas fa-exclamation-triangle"></i> Forzar Eliminación
+                                        </button>
+                                        
+                                        <div class="audio-control" data-horario-id="{{ clase.horario.id }}">
+                                            {% if clase.audio_file %}
+                                                <div class="d-flex align-items-center">
+                                                    <button class="btn btn-primary btn-lg audio-play-btn me-2" data-horario-id="{{ clase.horario.id }}">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                    <div>
+                                                        <span class="audio-label">Audio de la clase</span>
+                                                        <a href="#" class="replace-audio-link small d-block" data-horario-id="{{ clase.horario.id }}">Reemplazar audio</a>
+                                                    </div>
+                                                    <audio id="audio-{{ clase.horario.id }}" class="d-none" data-horario-id="{{ clase.horario.id }}">
+                                                        <source src="{{ url_for('audio_get', horario_id=clase.horario.id) }}?t={{ current_timestamp|int }}" type="audio/mpeg">
+                                                    </audio>
+                                                </div>
+                                                <script>document.querySelector('.audio-control[data-horario-id="{{ clase.horario.id }}"]').classList.add('has-audio');</script>
+                                            {% else %}
+                                                <div class="audio-upload-form">
+                                                    <div class="input-group input-group-responsive">
+                                                        <input type="file" id="audioUpload-{{ clase.horario.id }}" name="audio" class="form-control" accept="audio/*" />
+                                                        <button type="button" class="btn btn-primary upload-audio-btn" data-horario-id="{{ clase.horario.id }}">
+                                                            <i class="fas fa-upload"></i> Subir
+                                                        </button>
+                                                    </div>
+                                                    <small class="form-text text-muted d-block mb-2">Selecciona un archivo de audio (MP3, WAV, OGG)</small>
+                                                    
+                                                    <div id="progressBar-{{ clase.horario.id }}" class="progress mt-1" style="display: none;">
+                                                        <div class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                                                    </div>
+                                                    <div id="uploadMessage-{{ clase.horario.id }}" class="mt-2"></div>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if clase.observaciones %}
+                            <div class="mt-2">
+                                <strong>Observaciones:</strong>
+                                <p class="mb-0 small">{{ clase.observaciones }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i> No se han registrado clases para el día de hoy.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('historial_asistencia') }}" class="btn btn-info me-2">
+            <i class="fas fa-history me-1"></i> Ver Historial de Asistencia
+        </a>
+        <a href="{{ url_for('clases_no_registradas') }}" class="btn btn-warning">
+            <i class="fas fa-exclamation-circle me-1"></i> Clases No Registradas
+        </a>
+    </div>
+</div>
+
+<!-- JavaScript para el manejo de audio -->
+<script>
+    // Definir las URLs para audio
+    window.AUDIO_UPLOAD_URL = "{{ url_for('audio_upload', horario_id=0) }}".replace('/0', '');
+    window.AUDIO_GET_URL = "{{ url_for('audio_get', horario_id=0) }}".replace('/0', '');
+    window.AUDIO_CHECK_URL = "{{ url_for('audio_check', horario_id=0) }}".replace('/0', '');
+    
+    // Debug URLs
+    console.log('[DEBUG] URL de subida de audio generada: ' + window.AUDIO_UPLOAD_URL);
+    console.log('[DEBUG] URL de obtención de audio generada: ' + window.AUDIO_GET_URL);
+    console.log('[DEBUG] URL de verificación de audio generada: ' + window.AUDIO_CHECK_URL);
+    
+    // Función para forzar la eliminación de clases
+    function forzarEliminacion(id) {
+        if (confirm('¿Está seguro que desea FORZAR la eliminación de esta clase? Esta acción no se puede deshacer.')) {
+            fetch(`/diagnostico/eliminar_clase/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.resultado && data.resultado.includes('exitosamente')) {
+                        alert('Clase eliminada con éxito');
+                        // Recargar la página después de eliminar
+                        window.location.reload();
+                    } else {
+                        alert('Error al eliminar la clase: ' + JSON.stringify(data));
+                    }
+                })
+                .catch(error => {
+                    alert('Error en la petición: ' + error);
+                });
+        }
+    }
+</script>
+
+<!-- Cargar el archivo JavaScript para manejo de audio directamente -->
+<script src="{{ url_for('static', filename='js/audio-simple.js') }}?v={{ current_timestamp }}"></script>
+
+<script>
+    // Código adicional específico para esta página
+</script>
+{% endblock content %}

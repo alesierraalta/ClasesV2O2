@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Horario - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('listar_horarios') }}">Horarios</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Nuevo Horario</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Registrar Nuevo Horario de Clase</h4>
+                </div>
+                <div class="card-body">
+                    {% if profesores %}
+                    <form method="POST" action="{{ url_for('nuevo_horario') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre de la Clase *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            <div class="form-text">Ejemplo: Yoga, Pilates, Spinning, etc.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tipo_clase" class="form-label">Tipo de Clase *</label>
+                            <select class="form-select" id="tipo_clase" name="tipo_clase" required>
+                                {% for valor, etiqueta in tipos_clase %}
+                                <option value="{{ valor }}" {% if valor == 'OTRO' %}selected{% endif %}>{{ etiqueta }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Seleccione el tipo de clase para agrupar y visualizar de manera específica.</div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="dia_semana" class="form-label">Día de la semana *</label>
+                                <select class="form-select" id="dia_semana" name="dia_semana" required>
+                                    {% for dia_id, dia_nombre in dias_semana %}
+                                    <option value="{{ dia_id }}">{{ dia_nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hora_inicio" class="form-label">Hora de inicio *</label>
+                                <input type="time" class="form-control" id="hora_inicio" name="hora_inicio" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="duracion" class="form-label">Duración (minutos) *</label>
+                                <input type="number" class="form-control" id="duracion" name="duracion" value="60" min="15" step="5" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="capacidad_maxima" class="form-label">Capacidad máxima *</label>
+                                <input type="number" class="form-control" id="capacidad_maxima" name="capacidad_maxima" value="20" min="1" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="profesor_id" class="form-label">Profesor *</label>
+                            <select class="form-select" id="profesor_id" name="profesor_id" required>
+                                <option value="" selected disabled>Seleccione un profesor</option>
+                                {% for profesor in profesores %}
+                                <option value="{{ profesor.id }}">{{ profesor.nombre }} {{ profesor.apellido }} (Tarifa: ${{ profesor.tarifa_por_clase|round(2) }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('listar_horarios') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i> No hay profesores registrados. Debe <a href="{{ url_for('nuevo_profesor') }}" class="alert-link">agregar al menos un profesor</a> antes de registrar un horario de clase.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
