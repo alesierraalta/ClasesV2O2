@@ -35,6 +35,7 @@ env/
 # Flask
 instance/
 .webassets-cache
+error.html
 
 # Database
 *.db
