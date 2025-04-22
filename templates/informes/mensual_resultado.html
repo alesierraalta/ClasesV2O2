@@ -85,6 +85,21 @@
 {% endblock %}
 
 {% block content %}
+{% set total_clases = namespace(value=0) %}
+{% set total_alumnos = namespace(value=0) %}
+{% set total_tardanzas = namespace(value=0) %}
+{% set total_pagos = namespace(value=0) %}
+
+{% if resumen_profesores %}
+    <!-- Cálculos para resumen general -->
+    {% for profesor in resumen_profesores %}
+        {% set total_clases.value = total_clases.value + profesor.total_clases %}
+        {% set total_alumnos.value = total_alumnos.value + profesor.total_alumnos %}
+        {% set total_tardanzas.value = total_tardanzas.value + profesor.total_tardanzas %}
+        {% set total_pagos.value = total_pagos.value + profesor.pago_total %}
+    {% endfor %}
+{% endif %}
+
 <div class="container-fluid py-4">
     <!-- Header con acciones principales -->
     <div class="card bg-light mb-4 shadow-sm">
@@ -144,19 +159,6 @@
     </div>
 
     {% if resumen_profesores %}
-    <!-- Cálculos para resumen general -->
-    {% set total_clases = namespace(value=0) %}
-    {% set total_alumnos = namespace(value=0) %}
-    {% set total_retrasos = namespace(value=0) %}
-    {% set total_pagos = namespace(value=0) %}
-    
-    {% for profesor_id, datos in resumen_profesores.items() %}
-        {% set total_clases.value = total_clases.value + datos.total_clases %}
-        {% set total_alumnos.value = total_alumnos.value + datos.total_alumnos %}
-        {% set total_retrasos.value = total_retrasos.value + datos.total_retrasos %}
-        {% set total_pagos.value = total_pagos.value + datos.pago_total %}
-    {% endfor %}
-
     <!-- Resumen general en tarjetas -->
     <div id="resumen" class="row mb-4">
         <div class="col-12">
@@ -180,14 +182,14 @@
                         <div class="col-md-4">
                             <div class="card border-0 shadow-sm h-100 text-center">
                                 <div class="card-body">
-                                    <div class="display-4 {% if total_retrasos.value > 0 %}text-warning{% else %}text-info{% endif %} mb-2">
+                                    <div class="display-4 {% if total_tardanzas.value > 0 %}text-warning{% else %}text-info{% endif %} mb-2">
                                         <i class="fas fa-stopwatch"></i>
                                     </div>
-                                    <h1 class="display-5 fw-bold mb-0">{{ total_retrasos.value }}</h1>
+                                    <h1 class="display-5 fw-bold mb-0">{{ total_tardanzas.value }}</h1>
                                     <p class="mb-0 text-muted">
                                         Clases con retraso
-                                        {% if total_retrasos.value > 0 and total_clases.value > 0 %}
-                                            <span class="badge bg-warning text-dark ms-1">{{ (total_retrasos.value / total_clases.value * 100)|round(1) }}%</span>
+                                        {% if total_tardanzas.value > 0 and total_clases.value > 0 %}
+                                            <span class="badge bg-warning text-dark ms-1">{{ (total_tardanzas.value / total_clases.value * 100)|round(1) }}%</span>
                                         {% endif %}
                                     </p>
                                 </div>
@@ -231,15 +233,14 @@
                                         <th scope="col" class="text-center">Total Clases</th>
                                         <th scope="col" class="text-center">Promedio Alumnos/Clase</th>
                                         <th scope="col" class="text-center">Clases con Retraso</th>
-                                        <th scope="col" class="text-center">Tarifa por Clase</th>
                                         <th scope="col" class="text-center">Pago Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for profesor_id, datos in resumen_profesores.items() %}
+                                    {% for profesor in resumen_profesores %}
                                     <tr class="profesor-row">
                                         <td class="text-center align-middle">
-                                            <button class="btn btn-sm btn-outline-secondary toggle-clases" data-profesor-id="{{ profesor_id }}">
+                                            <button class="btn btn-sm btn-outline-secondary toggle-clases" data-profesor-id="{{ profesor.id }}">
                                                 <i class="fas fa-plus"></i>
                                             </button>
                                         </td>
@@ -249,45 +250,48 @@
                                                     <i class="fas fa-user text-primary"></i>
                                                 </div>
                                                 <div>
-                                                    <div class="fw-bold">{{ datos.profesor.nombre }} {{ datos.profesor.apellido }}</div>
-                                                    <small class="text-muted">ID: {{ datos.profesor.id }}</small>
+                                                    <div class="fw-bold">{{ profesor.nombre }} {{ profesor.apellido }}</div>
+                                                    <small class="text-muted">ID: {{ profesor.id }}</small>
                                                 </div>
                                             </div>
                                         </td>
                                         <td class="text-center align-middle">
-                                            <span class="badge rounded-pill bg-primary">{{ datos.total_clases }}</span>
+                                            <span class="badge rounded-pill bg-primary">{{ profesor.total_clases }}</span>
                                         </td>
                                         <td class="text-center align-middle">
-                                            {% if datos.total_clases > 0 %}
-                                                {{ (datos.total_alumnos / datos.total_clases)|round(1) }}
+                                            {% if profesor.total_clases > 0 %}
+                                                {{ (profesor.total_alumnos / profesor.total_clases)|round(1) }}
                                                 <div class="progress mt-1" style="height: 5px;">
-                                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ (datos.total_alumnos / datos.total_clases / 20 * 100)|round }}%;" title="Promedio respecto a capacidad típica"></div>
+                                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ (profesor.total_alumnos / profesor.total_clases / 20 * 100)|round }}%;" title="Promedio respecto a capacidad típica"></div>
                                                 </div>
                                             {% else %}
-                                                0
+                                                <span class="text-muted">-</span>
                                             {% endif %}
                                         </td>
                                         <td class="text-center align-middle">
-                                            {% if datos.total_retrasos > 0 %}
+                                            {% if profesor.total_tardanzas and profesor.total_tardanzas > 0 %}
                                                 <div class="position-relative">
-                                                    <span class="badge rounded-pill bg-warning text-dark">{{ datos.total_retrasos }}</span>
-                                                    <small class="d-block mt-1">{{ (datos.total_retrasos / datos.total_clases * 100)|round(1) }}%</small>
+                                                    <span class="badge rounded-pill bg-warning text-dark">{{ profesor.total_tardanzas }}</span>
+                                                    {% if profesor.total_clases and profesor.total_clases > 0 %}
+                                                    <small class="d-block mt-1">{{ (profesor.total_tardanzas / profesor.total_clases * 100)|round(1) }}%</small>
+                                                    {% endif %}
                                                 </div>
                                             {% else %}
                                                 <span class="badge rounded-pill bg-success"><i class="fas fa-check"></i> 0</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-center align-middle">${{ datos.profesor.tarifa_por_clase|round(2) }}</td>
                                         <td class="text-center align-middle">
-                                            <span class="badge rounded-pill bg-danger fs-6">${{ datos.pago_total|round(2) }}</span>
+                                            <span class="badge rounded-pill bg-danger fs-6">
+                                                ${{ profesor.pago_total|round(2) }}
+                                            </span>
                                         </td>
                                     </tr>
-                                    <tr class="clases-detalle" id="clases-profesor-{{ profesor_id }}" style="display: none;">
-                                        <td colspan="7" class="p-0">
+                                    <tr class="clases-detalle" id="clases-profesor-{{ profesor.id }}" style="display: none;">
+                                        <td colspan="6" class="p-0">
                                             <div class="bg-light p-3">
-                                                <h6 class="mb-3 border-bottom pb-2">Clases de {{ datos.profesor.nombre }} {{ datos.profesor.apellido }}</h6>
+                                                <h6 class="mb-3 border-bottom pb-2">Clases de {{ profesor.nombre }} {{ profesor.apellido }}</h6>
                                                 {% set clases_profesor = [] %}
-                                                {% for clase in clases_realizadas if clase.profesor.id == datos.profesor.id %}
+                                                {% for clase in clases_realizadas if clase.profesor.id == profesor.id %}
                                                     {% set _ = clases_profesor.append(clase) %}
                                                 {% endfor %}
                                                 
@@ -363,7 +367,13 @@
                                                                     {% endif %}
                                                                 </td>
                                                                 <td class="text-center align-middle">
-                                                                    <span class="badge bg-success">${{ clase.pago_calculado|round(2) }}</span>
+                                                                    <span class="badge bg-success">
+                                                                        {% if clase.pago_calculado is defined and clase.pago_calculado is not none %}
+                                                                            ${{ clase.pago_calculado|round(2) }}
+                                                                        {% else %}
+                                                                            $0.00
+                                                                        {% endif %}
+                                                                    </span>
                                                                 </td>
                                                                 <td>
                                                                     {% if clase.observaciones %}
@@ -495,7 +505,13 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center align-middle">
-                                        <span class="badge bg-success">${{ clase.pago_calculado|round(2) }}</span>
+                                        <span class="badge bg-success">
+                                            {% if clase.pago_calculado is defined and clase.pago_calculado is not none %}
+                                                ${{ clase.pago_calculado|round(2) }}
+                                            {% else %}
+                                                $0.00
+                                            {% endif %}
+                                        </span>
                                     </td>
                                     <td class="align-middle">
                                         {% if clase.observaciones %}
@@ -1153,10 +1169,10 @@
         };
         
         // Valores por defecto en caso de que no haya datos
-        const clases = "{{ total_clases.value|default('0') }}";
-        const alumnos = "{{ total_alumnos.value|default('0') }}";
-        const retrasos = "{{ total_retrasos.value|default('0') }}";
-        const pagos = "{{ total_pagos.value|default('0') }}";
+        const clases = "0";
+        const alumnos = "0";
+        const retrasos = "0";
+        const pagos = "0";
         
         // Hoja principal con resumen
         const resumenData = [
