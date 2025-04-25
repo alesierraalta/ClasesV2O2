@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración de Exportación de Datos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Exportación e Importación de Base de Datos</h1>
+            
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Exportar datos a Excel</h6>
+                </div>
+                <div class="card-body">
+                    <p>
+                        Desde aquí puede exportar los datos de la base de datos a archivos Excel.
+                        La exportación protege datos sensibles como teléfonos y correos electrónicos.
+                    </p>
+                    
+                    <form method="POST" action="{{ url_for('configuracion_exportar') }}">
+                        <div class="form-group mb-3">
+                            <label for="proteccion_datos" class="form-label">Nivel de protección de datos:</label>
+                            <select class="form-select" id="proteccion_datos" name="proteccion_datos">
+                                <option value="completa" {% if nivel_proteccion == 'completa' %}selected{% endif %}>
+                                    Protección completa (ocultar todos los datos sensibles)
+                                </option>
+                                <option value="parcial" {% if nivel_proteccion == 'parcial' %}selected{% endif %}>
+                                    Protección parcial (mostrar parcialmente datos sensibles)
+                                </option>
+                                <option value="ninguna" {% if nivel_proteccion == 'ninguna' %}selected{% endif %}>
+                                    Sin protección (mostrar todos los datos)
+                                </option>
+                            </select>
+                            <small class="form-text text-muted">
+                                Seleccione el nivel de protección para datos personales como teléfonos y correos electrónicos
+                            </small>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="directorio" class="form-label">Directorio de exportación:</label>
+                            <input type="text" class="form-control" id="directorio" name="directorio" value="{{ directorio }}" placeholder="backups">
+                            <small class="form-text text-muted">
+                                Carpeta donde se guardarán los archivos exportados (se creará si no existe)
+                            </small>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="excel_unificado" name="excel_unificado" {% if excel_unificado %}checked{% endif %}>
+                            <label class="form-check-label" for="excel_unificado">
+                                Crear un archivo Excel unificado con todas las tablas
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="excel_individuales" name="excel_individuales" {% if excel_individuales %}checked{% endif %}>
+                            <label class="form-check-label" for="excel_individuales">
+                                Crear archivos Excel individuales para cada tabla
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Exportar datos a Excel</button>
+                    </form>
+                    
+                    {% if mensaje_resultado %}
+                    <div class="alert alert-info mt-4">
+                        <h5>Resultado de la exportación</h5>
+                        <p>{{ mensaje_resultado }}</p>
+                        
+                        {% if archivos_exportados %}
+                        <div class="mt-3">
+                            <h6>Archivos exportados:</h6>
+                            <ul>
+                                {% for archivo in archivos_exportados %}
+                                <li>{{ archivo }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="alert alert-warning mt-4">
+                        <h5>Información importante</h5>
+                        <p>Tenga en cuenta las siguientes consideraciones al exportar datos:</p>
+                        <ul>
+                            <li>Los archivos exportados se guardarán en la carpeta seleccionada con la fecha y hora actual.</li>
+                            <li>Según el nivel de protección seleccionado, los datos sensibles pueden aparecer ocultos o parcialmente visibles.</li>
+                            <li>Recomendamos mantener la protección completa para cumplir con las normativas de protección de datos.</li>
+                            <li>Asegúrese de almacenar los archivos exportados en un lugar seguro.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Nueva tarjeta para exportar/importar archivo de base de datos -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex align-items-center" style="background-color: #6c757d; color: white;">
+                    <h6 class="m-0 font-weight-bold">Exportar/Importar archivo de Base de Datos</h6>
+                    <span class="badge bg-warning text-dark ms-2">Avanzado</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-4 mb-md-0">
+                            <div class="card h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">Exportar archivo de base de datos</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p>
+                                        Descargue una copia completa del archivo de base de datos SQLite.
+                                        Esto permite crear copias de seguridad del sistema completo.
+                                    </p>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('exportar_db') }}" class="btn btn-primary">
+                                            <i class="fas fa-download me-1"></i> Descargar archivo de base de datos
+                                        </a>
+                                        <a href="{{ url_for('exportar_db_completo') }}" class="btn btn-success">
+                                            <i class="fas fa-download me-1"></i> Descargar backup completo (DB + Audios)
+                                        </a>
+                                    </div>
+                                    <div class="alert alert-info mt-3 small">
+                                        <i class="fas fa-info-circle me-1"></i> La opción de backup completo incluye los archivos de audio y es recomendada para preservar todas tus grabaciones.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-danger text-white">
+                                    <h6 class="mb-0">Importar archivo de base de datos</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p>
+                                        Reemplace la base de datos actual con un archivo previamente exportado.
+                                        <strong>ADVERTENCIA: Esta acción reemplazará todos los datos actuales.</strong>
+                                    </p>
+                                    
+                                    <ul class="nav nav-tabs mb-3" id="importTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="db-tab" data-bs-toggle="tab" data-bs-target="#db-content" type="button" role="tab" aria-selected="true">Importar DB (.db)</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-content" type="button" role="tab" aria-selected="false">Importar Backup Completo (.zip)</button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="importTabsContent">
+                                        <!-- Pestaña de importar solo DB -->
+                                        <div class="tab-pane fade show active" id="db-content" role="tabpanel">
+                                            <form method="POST" action="{{ url_for('importar_db') }}" enctype="multipart/form-data">
+                                                <div class="mb-3">
+                                                    <label for="db_file" class="form-label">Seleccione el archivo .db a importar:</label>
+                                                    <input class="form-control" type="file" id="db_file" name="db_file" accept=".db">
+                                                    <div class="form-text">
+                                                        <i class="fas fa-info-circle"></i> Los audios existentes se preservarán durante la importación.
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmImportModal">
+                                                    <i class="fas fa-upload me-1"></i> Importar base de datos
+                                                </button>
+                                                
+                                                <!-- Modal de confirmación -->
+                                                <div class="modal fade" id="confirmImportModal" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title">¡Advertencia! Acción irreversible</h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="alert alert-warning">
+                                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                    <strong>Esta acción reemplazará completamente su base de datos actual.</strong>
+                                                                </div>
+                                                                <p>Al confirmar:</p>
+                                                                <ul>
+                                                                    <li>Se creará una copia de seguridad de su base de datos actual</li>
+                                                                    <li>Todos los datos actuales serán reemplazados por los del archivo importado</li>
+                                                                    <li>Los archivos de audio existentes se preservarán</li>
+                                                                    <li>Este proceso no se puede deshacer fácilmente</li>
+                                                                </ul>
+                                                                <p>¿Está seguro de que desea continuar?</p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-danger">Sí, importar archivo</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        
+                                        <!-- Pestaña de importar backup completo -->
+                                        <div class="tab-pane fade" id="backup-content" role="tabpanel">
+                                            <form method="POST" action="{{ url_for('importar_db_completo') }}" enctype="multipart/form-data">
+                                                <div class="mb-3">
+                                                    <label for="zip_file" class="form-label">Seleccione el archivo .zip a importar:</label>
+                                                    <input class="form-control" type="file" id="zip_file" name="zip_file" accept=".zip">
+                                                    <div class="form-text">
+                                                        <i class="fas fa-info-circle"></i> Este archivo debe contener la base de datos y los archivos de audio.
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmCompleteImportModal">
+                                                    <i class="fas fa-upload me-1"></i> Importar backup completo
+                                                </button>
+                                                
+                                                <!-- Modal de confirmación para backup completo -->
+                                                <div class="modal fade" id="confirmCompleteImportModal" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title">¡Advertencia! Acción irreversible</h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="alert alert-warning">
+                                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                    <strong>Esta acción reemplazará completamente su base de datos y archivos de audio.</strong>
+                                                                </div>
+                                                                <p>Al confirmar:</p>
+                                                                <ul>
+                                                                    <li>Se creará una copia de seguridad de su base de datos actual</li>
+                                                                    <li>Se respaldarán sus archivos de audio actuales</li>
+                                                                    <li>Todos los datos actuales serán reemplazados por los del archivo importado</li>
+                                                                    <li>Se importarán los archivos de audio incluidos en el backup</li>
+                                                                    <li>Este proceso no se puede deshacer fácilmente</li>
+                                                                </ul>
+                                                                <p>¿Está seguro de que desea continuar?</p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-danger">Sí, importar backup completo</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-danger mt-4">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i> Precauciones importantes</h5>
+                        <p>Por favor, tenga en cuenta los siguientes puntos al trabajar con archivos de base de datos:</p>
+                        <ul>
+                            <li>Exportar la base de datos crea una copia del archivo SQLite completo</li>
+                            <li>Importar una base de datos <strong>reemplazará todos los datos actuales</strong></li>
+                            <li>Se recomienda exportar regularmente la base de datos como respaldo</li>
+                            <li>Solo importe archivos de base de datos que provengan de versiones compatibles del sistema</li>
+                            <li>Después de importar una base de datos, puede ser necesario reiniciar la aplicación</li>
+                            <li><strong>Para conservar los archivos de audio</strong> durante actualizaciones, utilice la opción de <em>Backup Completo</em></li>
+                            <li>Si utiliza la importación de archivo .db simple, los archivos de audio existentes se preservarán automáticamente</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

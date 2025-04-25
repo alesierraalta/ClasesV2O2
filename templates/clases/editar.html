@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Clase - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('listar_clases') }}">Clases</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Clase</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h4 class="mb-0">Editar Clase</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('editar_clase', id=clase.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre de la Clase *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" value="{{ clase.nombre }}" required>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="fecha" class="form-label">Fecha *</label>
+                                <input type="date" class="form-control" id="fecha" name="fecha" value="{{ clase.fecha.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="hora" class="form-label">Hora *</label>
+                                <input type="time" class="form-control" id="hora" name="hora" value="{{ clase.hora.strftime('%H:%M') }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="duracion" class="form-label">Duración (minutos) *</label>
+                                <input type="number" class="form-control" id="duracion" name="duracion" value="{{ clase.duracion }}" min="15" step="5" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cantidad_alumnos" class="form-label">Cantidad de Alumnos *</label>
+                                <input type="number" class="form-control" id="cantidad_alumnos" name="cantidad_alumnos" value="{{ clase.cantidad_alumnos }}" min="0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="profesor_id" class="form-label">Profesor *</label>
+                            <select class="form-select" id="profesor_id" name="profesor_id" required>
+                                {% for profesor in profesores %}
+                                <option value="{{ profesor.id }}" {% if profesor.id == clase.profesor_id %}selected{% endif %}>
+                                    {{ profesor.nombre }} {{ profesor.apellido }} (Tarifa: ${{ profesor.tarifa_por_clase|round(2) }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('listar_clases') }}" class="btn btn-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-warning">Actualizar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

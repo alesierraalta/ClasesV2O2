@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350">
+  <!-- Logo oval con número 2 - Versión azul exacta de la imagen compartida -->
+  <g transform="translate(300, 80) scale(0.35)">
+    <ellipse cx="0" cy="0" rx="90" ry="75" fill="none" stroke="#1a4ea0" stroke-width="16"/>
+    <ellipse cx="0" cy="0" rx="65" ry="55" fill="none" stroke="#1a4ea0" stroke-width="16"/>
+    <path d="M30,40h-60v-10l40-40c5-5,7-10,7-15c0-8-6-14-14-14s-14,6-14,14h-14c0-18,15-32,32-32s32,14,32,32c0,9-4,17-10,23l-29,30h30V40z" fill="#1a4ea0"/>
+  </g>
+  
+  <!-- Texto de marca registrada -->
+  <text x="355" y="105" font-family="Arial, sans-serif" font-size="6" fill="#1a4ea0">TM</text>
+  
+  <!-- Texto O2FITNESS -->
+  <text x="300" y="195" font-family="Arial, sans-serif" font-size="58" font-weight="bold" letter-spacing="-1" fill="#1a4ea0" text-anchor="middle">O₂FITNESS</text>
+  
+  <!-- Texto CLUB -->
+  <text x="300" y="250" font-family="Arial, sans-serif" font-size="40" font-weight="bold" letter-spacing="5" fill="#1a4ea0" text-anchor="middle">CLUB</text>
+</svg> 

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prueba Final de Carga de Audio</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        #result {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            background-color: #f9f9f9;
+        }
+        #status {
+            font-weight: bold;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Prueba Final de Carga de Audio</h1>
+    
+    <div class="container">
+        <h2>Método 1: Carga Directa (usando CSRF)</h2>
+        <div>
+            <input type="file" id="audioFile" accept="audio/*">
+            <button id="uploadBtn">Subir Audio</button>
+        </div>
+        <div id="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Método 2: Carga API (sin CSRF)</h2>
+        <div>
+            <input type="file" id="audioFileApi" accept="audio/*">
+            <button id="uploadBtnApi">Subir con API</button>
+        </div>
+        <div id="resultApi"></div>
+    </div>
+    
+    <script>
+        // Comenzar obteniendo el token CSRF
+        let csrfToken = '';
+        
+        fetch('/get-csrf-token')
+            .then(response => response.json())
+            .then(data => {
+                csrfToken = data.csrf_token;
+                console.log('CSRF Token obtenido:', csrfToken ? 'Sí' : 'No');
+                // Habilitar los botones una vez que tengamos el token
+                document.getElementById('uploadBtn').disabled = false;
+            })
+            .catch(error => {
+                console.error('Error al obtener el token CSRF:', error);
+                document.getElementById('result').innerHTML = 
+                    '<div class="error">Error al obtener el token CSRF. Algunas funciones pueden no estar disponibles.</div>';
+            });
+        
+        // Método 1: Carga con CSRF
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('audioFile');
+            const resultDiv = document.getElementById('result');
+            
+            if (fileInput.files.length === 0) {
+                resultDiv.innerHTML = '<div class="error">No se seleccionó ningún archivo</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio', file);
+            formData.append('csrf_token', csrfToken);
+            
+            // Mostrar información de depuración
+            resultDiv.innerHTML = '<div id="status">Enviando archivo... <span class="loading"></span></div>' +
+                                 '<div>Nombre: ' + file.name + '</div>' +
+                                 '<div>Tipo: ' + file.type + '</div>' +
+                                 '<div>Tamaño: ' + (file.size / 1024).toFixed(2) + ' KB</div>' +
+                                 '<div>CSRF Token: ' + (csrfToken ? 'Presente' : 'No encontrado') + '</div>';
+            
+            // IMPORTANTE: Usar la ruta original que sabemos que funciona
+            fetch('/asistencia/upload_audio/5', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            })
+            .then(response => {
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = 'Estado: ' + response.status + ' ' + response.statusText;
+                
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        return { success: response.ok, text: text };
+                    }
+                });
+            })
+            .then(data => {
+                if (data.success || (data.message && !data.error)) {
+                    resultDiv.innerHTML += '<div class="success">¡Archivo subido correctamente!</div>';
+                    if (data.message) {
+                        resultDiv.innerHTML += '<div>' + data.message + '</div>';
+                    }
+                    if (data.file_path) {
+                        resultDiv.innerHTML += '<div>Ruta: ' + data.file_path + '</div>';
+                    }
+                } else {
+                    resultDiv.innerHTML += '<div class="error">Error: ' + (data.error || data.message || data.text || 'Desconocido') + '</div>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML += '<div class="error">Error: ' + error.message + '</div>';
+            });
+        });
+        
+        // Método 2: Carga con API (sin CSRF)
+        document.getElementById('uploadBtnApi').addEventListener('click', function() {
+            const fileInput = document.getElementById('audioFileApi');
+            const resultDiv = document.getElementById('resultApi');
+            
+            if (fileInput.files.length === 0) {
+                resultDiv.innerHTML = '<div class="error">No se seleccionó ningún archivo</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio', file);
+            
+            // Mostrar información de depuración
+            resultDiv.innerHTML = '<div id="statusApi">Enviando archivo a la API... <span class="loading"></span></div>' +
+                                 '<div>Nombre: ' + file.name + '</div>' +
+                                 '<div>Tipo: ' + file.type + '</div>' +
+                                 '<div>Tamaño: ' + (file.size / 1024).toFixed(2) + ' KB</div>';
+            
+            // Usamos la ruta API sin token CSRF
+            fetch('/api/upload_audio/5', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                const statusDiv = document.getElementById('statusApi');
+                statusDiv.textContent = 'Estado: ' + response.status + ' ' + response.statusText;
+                
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        return { success: response.ok, text: text };
+                    }
+                });
+            })
+            .then(data => {
+                if (data.success || (data.message && !data.error)) {
+                    resultDiv.innerHTML += '<div class="success">¡Archivo subido correctamente con API!</div>';
+                    if (data.message) {
+                        resultDiv.innerHTML += '<div>' + data.message + '</div>';
+                    }
+                    if (data.file_path) {
+                        resultDiv.innerHTML += '<div>Ruta: ' + data.file_path + '</div>';
+                        resultDiv.innerHTML += '<div><audio controls src="' + data.file_path + '"></audio></div>';
+                    }
+                } else {
+                    resultDiv.innerHTML += '<div class="error">Error: ' + (data.error || data.message || data.text || 'Desconocido') + '</div>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML += '<div class="error">Error: ' + error.message + '</div>';
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}O2 Fitness Club - Sistema de Gestión{% endblock %}</title>
+    <!-- Debug message -->
+    <script>console.log("Base template loaded successfully");</script>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/images/Logos-10.png') }}" sizes="any">
+    <link rel="icon" href="{{ url_for('static', filename='img/images/Logos-10.png') }}" type="image/png">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/images/Logos-10.png') }}">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- iOS Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Audio Controls Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-controls.css') }}">
+    
+    <!-- Global Styles -->
+    <style>
+        /* Tipos de clase */
+        .bg-move {
+            background-color: #28a745 !important;
+        }
+        .bg-ride {
+            background-color: #007bff !important;
+        }
+        .bg-box {
+            background-color: #dc3545 !important;
+        }
+        
+        /* Fondos para celdas de tipo de clase */
+        .clase-move-bg {
+            background-color: rgba(40, 167, 69, 0.1);
+            border-left: 4px solid #28a745 !important;
+        }
+        .clase-ride-bg {
+            background-color: rgba(0, 123, 255, 0.1);
+            border-left: 4px solid #007bff !important;
+        }
+        .clase-box-bg {
+            background-color: rgba(220, 53, 69, 0.1);
+            border-left: 4px solid #dc3545 !important;
+        }
+        .clase-otro-bg {
+            background-color: rgba(108, 117, 125, 0.1);
+            border-left: 4px solid #6c757d !important;
+        }
+        
+        /* Filas de tabla por tipo de clase */
+        tr.clase-move {
+            background-color: rgba(40, 167, 69, 0.05);
+        }
+        tr.clase-move:hover {
+            background-color: rgba(40, 167, 69, 0.15);
+        }
+        
+        tr.clase-ride {
+            background-color: rgba(0, 123, 255, 0.05);
+        }
+        tr.clase-ride:hover {
+            background-color: rgba(0, 123, 255, 0.15);
+        }
+        
+        tr.clase-box {
+            background-color: rgba(220, 53, 69, 0.05);
+        }
+        tr.clase-box:hover {
+            background-color: rgba(220, 53, 69, 0.15);
+        }
+        
+        /* Estilos para el menú desplegable de configuración */
+        .config-submenu {
+            position: relative;
+        }
+        
+        .config-submenu .dropdown-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 10px;
+            min-width: 180px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .config-submenu .dropdown-menu.show {
+            display: block;
+        }
+        
+        .config-submenu .dropdown-menu:after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid white;
+        }
+        
+        .config-submenu .dropdown-item {
+            padding: 10px 15px;
+            font-size: 14px;
+        }
+        
+        .config-submenu .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* O2 Logo styles */
+        .o2-logo {
+            height: 90px;
+            width: auto;
+            margin: 0;
+            padding: 0;
+            object-fit: contain;
+            max-width: 100%;
+        }
+        
+        /* iOS Navigation Bar adjustments */
+        .navbar.ios-navbar {
+            padding: 0;
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            z-index: 1040;
+        }
+        
+        .navbar.ios-navbar .container-fluid {
+            padding: 0;
+        }
+        
+        .navbar.ios-navbar .fw-bold {
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* Back button styles */
+        .back-button {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            z-index: 1050;
+            border: none;
+            opacity: 0;
+            outline: none !important;
+        }
+        
+        .back-button:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-50%) scale(1.05);
+        }
+        
+        .back-button:active, .back-button.clicked {
+            transform: translateY(-50%) scale(0.95);
+            background-color: #f0f0f0;
+        }
+        
+        .back-button i {
+            font-size: 18px;
+            color: #444;
+        }
+        
+        /* O2 Tab logo */
+        .tab-icon {
+            height: 32px;
+            margin-bottom: 2px;
+            object-fit: contain;
+        }
+    </style>
+    
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <!-- iOS Navigation Bar -->
+    <nav class="navbar navbar-light ios-navbar fixed-top">
+        <div class="container-fluid position-relative">
+            <button id="backButton" class="back-button d-none">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="w-100 text-center">
+                <img src="{{ url_for('static', filename='img/images/Logos-11.png') }}" alt="O2 Logo" class="o2-logo">
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-5 pt-5">
+        <div class="row">
+            <!-- Contenido principal -->
+            <main class="col-12 px-md-4 py-4">
+                <!-- Mensajes Flash -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show ios-card" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Contenido de la página -->
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- iOS Tab Bar Navigation -->
+    <nav class="ios-tab-bar fixed-bottom">
+        <div class="container">
+            <div class="row text-center g-0">
+                <div class="col">
+                    <a href="{{ url_for('index') }}" class="ios-tab-item {% if request.path == url_for('index') %}active{% endif %}">
+                        <img src="{{ url_for('static', filename='img/images/Logos-10.png') }}" alt="O2" class="tab-icon">
+                        <span class="ios-tab-label">Inicio</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('listar_profesores') }}" class="ios-tab-item {% if '/profesores' in request.path %}active{% endif %}">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span class="ios-tab-label">Profesores</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('listar_horarios') }}" class="ios-tab-item {% if '/horarios' in request.path %}active{% endif %}">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span class="ios-tab-label">Horarios</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('control_asistencia') }}" class="ios-tab-item {% if '/asistencia' in request.path %}active{% endif %}">
+                        <i class="fas fa-clipboard-check"></i>
+                        <span class="ios-tab-label">Asistencia</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('informes') }}" class="ios-tab-item {% if '/informes' in request.path %}active{% endif %}">
+                        <i class="fas fa-chart-bar"></i>
+                        <span class="ios-tab-label">Informes</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('configuracion_notificaciones') }}" class="ios-tab-item {% if '/configuracion' in request.path %}active{% endif %}">
+                        <i class="fas fa-cog"></i>
+                        <span class="ios-tab-label">Config</span>
+                    </a>
+                    <div class="config-submenu">
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('configuracion_notificaciones') }}">Notificaciones</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('configuracion_exportar') }}">Exportar Base de Datos</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Scripts para navegación iOS -->
+    <script>
+        // Gestión mejorada del botón de regreso
+        document.addEventListener('DOMContentLoaded', function() {
+            const backButton = document.getElementById('backButton');
+            
+            // Verificar si estamos en una página donde el botón de regreso debería mostrarse
+            const isMainPage = window.location.pathname === '/' || 
+                              window.location.pathname === '/index' || 
+                              window.location.pathname === '/simple';
+            
+            if (!isMainPage && document.referrer) {
+                // Si no estamos en la página principal y hay una página anterior, mostrar el botón
+                backButton.classList.remove('d-none');
+                
+                // Añadir animación sutil al mostrar el botón
+                setTimeout(() => {
+                    backButton.style.opacity = '1';
+                }, 100);
+            }
+            
+            // Personalizar comportamiento del botón de regreso
+            backButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Efecto visual al hacer clic
+                this.classList.add('clicked');
+                
+                // Retrasar ligeramente la navegación para que se vea la animación
+                setTimeout(() => {
+                    // Verificar si hay historial para regresar
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        // Si no hay historial, ir a la página principal
+                        window.location.href = '/';
+                    }
+                }, 150);
+            });
+            
+            // Manejar el menú desplegable de Configuración
+            const configTab = document.querySelector('.ios-tab-item[href*="configuracion"]');
+            const configSubmenu = document.querySelector('.config-submenu');
+            
+            if (configTab && configSubmenu) {
+                // Mostrar/ocultar el menú al hacer clic en Config
+                configTab.addEventListener('click', function(e) {
+                    // Solo prevenir el comportamiento predeterminado si hacemos clic directamente en Config
+                    if (e.target === configTab || configTab.contains(e.target)) {
+                        e.preventDefault();
+                        configSubmenu.querySelector('.dropdown-menu').classList.toggle('show');
+                    }
+                });
+                
+                // Cerrar el menú al hacer clic fuera
+                document.addEventListener('click', function(e) {
+                    if (!configTab.contains(e.target) && !configSubmenu.contains(e.target)) {
+                        configSubmenu.querySelector('.dropdown-menu').classList.remove('show');
+                    }
+                });
+            }
+        });
+    </script>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Script para Navbar de efecto sombra -->
+    <script>
+        // Controla la sombra del navbar según el scroll
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar.ios-navbar');
+            if (window.scrollY > 20) {
+                navbar.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+            } else {
+                navbar.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
+            }
+        });
+    </script>
+    
+    <!-- Objeto con todas las URLs de la aplicación -->
+    <script>
+    const AppURLs = {
+        // URLs de audio
+        audio: {
+            upload: function(horario_id) { return `/asistencia/audio/upload/${horario_id}`; },
+            get: function(horario_id) { return `/asistencia/audio/get/${horario_id}`; },
+            check: function(horario_id) { return `/asistencia/audio/check/${horario_id}`; }
+        },
+        // Otras URLs
+        // ...
+    };
+    </script>
+    
+    <!-- Scripts personalizados para cada página -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

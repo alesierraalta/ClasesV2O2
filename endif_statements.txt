@@ -1,0 +1,38 @@
+140:                                {% endif %}
+178:    {% endif %}
+217:                                    <div class="display-4 {% if total_retrasos.value > 0 %}text-warning{% else %}text-info{% endif %} mb-2">
+225:                                        {% endif %}
+302:                                            {% endif %}
+312:                                            {% endif %}
+359:                                                                    {% endif %}
+370:                                                                    {% endif %}
+374:                                                                        <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+383:                                                                    {% endif %}
+391:                                                                    {% endif %}
+401:                                                                    {% endif %}
+412:                                                {% endif %}
+475:                                        {% endif %}
+485:                                        {% endif %}
+496:                                        {% endif %}
+500:                                            <span class="badge rounded-pill {% if clase.puntualidad() == 'Puntual' %}bg-success{% elif clase.puntualidad() == 'Retraso leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+509:                                        {% endif %}
+517:                                        {% endif %}
+527:                                        {% endif %}
+550:                        {% endif %}
+637:                                            {% endif %}
+657:                        {% endif %}
+804:                    {% endif %}
+1114:                                {% if conteo_tipos is defined %}{{ conteo_tipos['MOVE'] }}{% else %}0{% endif %},
+1115:                                {% if conteo_tipos is defined %}{{ conteo_tipos['RIDE'] }}{% else %}0{% endif %},
+1116:                                {% if conteo_tipos is defined %}{{ conteo_tipos['BOX'] }}{% else %}0{% endif %},
+1117:                                {% if conteo_tipos is defined %}{{ conteo_tipos['OTRO'] }}{% else %}0{% endif %}
+1156:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['MOVE'] }}{% else %}0{% endif %},
+1157:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['RIDE'] }}{% else %}0{% endif %},
+1158:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['BOX'] }}{% else %}0{% endif %},
+1159:                                {% if alumnos_tipos is defined %}{{ alumnos_tipos['OTRO'] }}{% else %}0{% endif %}
+1272:        {% endif %}
+1288:            {% if clase.profesor_suplente %}"Suplente"{% elif clase.ausencia_profesor %}"Cancelada"{% else %}"Normal"{% endif %},
+1289:            {% if clase.hora_llegada_profesor %}"{{ clase.hora_llegada_profesor.strftime('%H:%M') }}"{% else %}"N/A"{% endif %},
+1290:            {% if clase.hora_llegada_profesor %}"{{ clase.puntualidad() }}"{% else %}"N/A"{% endif %},
+1297:        {% endif %}
+1318:        {% endif %}

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración de Notificaciones{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Configuración de Notificaciones</h1>
+            
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Notificaciones de WhatsApp para Clases No Registradas</h6>
+                </div>
+                <div class="card-body">
+                    <p>
+                        Configure el número de teléfono al que se enviarán notificaciones de WhatsApp 
+                        cuando haya clases que no se han registrado. Las notificaciones se enviarán 
+                        de acuerdo a los horarios que usted configure:
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Notificaciones WhatsApp</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('configuracion_notificaciones') }}">
+                        <div class="form-group mb-3">
+                            <label for="telefono_notificaciones">Número de teléfono para notificaciones:</label>
+                            <input type="text" class="form-control" id="telefono_notificaciones" name="telefono_notificaciones" placeholder="+56912345678" value="{{ telefono_actual }}">
+                            <small class="form-text text-muted">
+                                Ingrese el número completo incluyendo el código del país (ej: +56912345678)
+                            </small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="hora_notificacion_1">Primera notificación diaria:</label>
+                                    <input type="time" class="form-control" id="hora_notificacion_1" name="hora_notificacion_1" value="{{ hora_notificacion_1 }}">
+                                    <small class="form-text text-muted">
+                                        Hora de la primera notificación (formato 24h)
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="hora_notificacion_2">Segunda notificación diaria:</label>
+                                    <input type="time" class="form-control" id="hora_notificacion_2" name="hora_notificacion_2" value="{{ hora_notificacion_2 }}">
+                                    <small class="form-text text-muted">
+                                        Hora de la segunda notificación (formato 24h)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Guardar configuración</button>
+                        <button type="submit" name="enviar_prueba" class="btn btn-info">Guardar y enviar notificación de prueba</button>
+                    </form>
+                    
+                    <div class="alert alert-info mt-4">
+                        <h5>Requisitos para las notificaciones por WhatsApp</h5>
+                        <ul>
+                            <li>El sistema envía notificaciones usando PyWhatKit, que requiere una sesión de WhatsApp Web activa</li>
+                            <li>El equipo debe tener un navegador web instalado</li>
+                            <li>La primera vez que envíe una notificación, deberá escanear el código QR para iniciar sesión en WhatsApp Web</li>
+                            <li>No cierre la ventana de WhatsApp Web mientras se procesa el envío</li>
+                            <li>Para evitar problemas, el sistema limita los envíos a uno cada 15 minutos</li>
+                            <li>Si la aplicación se cierra durante un envío, reinicie la aplicación y use el script <code>verify_notifications.py</code> para limpiar los bloqueos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-4">
+                        <h5>Solución de problemas</h5>
+                        <p>Si las notificaciones no funcionan correctamente:</p>
+                        <ol>
+                            <li>Verifique que el número de teléfono sea correcto e incluya el código del país (ej: +34612345678)</li>
+                            <li>Asegúrese de tener una sesión de WhatsApp Web activa</li>
+                            <li>Si nota que los mensajes se están enviando repetidamente, detenga la aplicación</li>
+                            <li>Ejecute <code>python verify_notifications.py</code> para limpiar cualquier bloqueo</li>
+                            <li>Reinicie la aplicación con <code>run.bat</code></li>
+                        </ol>
+                        <p><strong>Si los mensajes no se envían completamente</strong> (aparecen en la ventana de WhatsApp pero no se presiona Enviar):</p>
+                        <ul>
+                            <li>Utilice el método alternativo con: <code>python send_whatsapp_manual.py</code></li>
+                            <li>Este método utiliza una biblioteca adicional (pyautogui) para simular la pulsación de Enter</li>
+                            <li>Durante el envío, no mueva el mouse ni use el teclado</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

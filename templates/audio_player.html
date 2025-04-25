@@ -1,0 +1,54 @@
+{% macro audio_player_with_waveform(audio_src, horario_id, player_id) %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h5>Audio grabado</h5>
+    </div>
+    <div class="card-body">
+        <audio id="{{ player_id }}" controls class="w-100 mb-2">
+            <source src="{{ audio_src }}" type="audio/mpeg">
+            Tu navegador no soporta la reproducción de audio.
+        </audio>
+        
+        <!-- Waveform visualization -->
+        <div id="waveform-container-{{ player_id }}" class="position-relative">
+            <img id="waveform-{{ player_id }}" src="{{ url_for('audio.audio_waveform', horario_id=horario_id) }}" 
+                 class="w-100" style="height: 80px;">
+            <canvas id="progressCanvas-{{ player_id }}" 
+                    class="position-absolute top-0 left-0" style="pointer-events: none;"></canvas>
+        </div>
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const audio = document.getElementById('{{ player_id }}');
+            const canvas = document.getElementById('progressCanvas-{{ player_id }}');
+            const ctx = canvas.getContext('2d');
+            const waveformImg = document.getElementById('waveform-{{ player_id }}');
+
+            // Set canvas size to match image
+            function resizeCanvas() {
+                canvas.width = waveformImg.offsetWidth;
+                canvas.height = waveformImg.offsetHeight;
+            }
+            
+            // Initial resize
+            setTimeout(resizeCanvas, 100); // Small delay to ensure image is loaded
+            window.addEventListener('resize', resizeCanvas);
+
+            // Update progress indicator
+            audio.addEventListener('timeupdate', function() {
+                const progress = audio.currentTime / audio.duration;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw progress line
+                ctx.beginPath();
+                ctx.moveTo(progress * canvas.width, 0);
+                ctx.lineTo(progress * canvas.width, canvas.height);
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        });
+        </script>
+    </div>
+</div>
+{% endmacro %}

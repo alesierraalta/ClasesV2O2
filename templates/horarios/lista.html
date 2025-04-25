@@ -1,0 +1,706 @@
+{% extends 'base.html' %}
+
+{% block title %}Horarios de Clases - Sistema de Gestión de Clases{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gestión de Horarios</h2>
+        <div class="d-none d-md-block">
+            <button id="btnEliminarSeleccionados" class="btn btn-danger me-2" style="display:none">
+                <i class="fas fa-trash me-1"></i> Eliminar Seleccionados <span class="badge bg-light text-dark count-selected">0</span>
+            </button>
+            <a href="{{ url_for('nuevo_horario') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Nuevo Horario
+            </a>
+        </div>
+        <div class="d-md-none">
+            <div class="btn-group" role="group">
+                <button id="btnEliminarSeleccionadosMobile" class="btn btn-danger" style="display:none">
+                    <i class="fas fa-trash"></i> <span class="count-selected">0</span>
+                </button>
+                <a href="{{ url_for('nuevo_horario') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if horarios %}
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filtros</h5>
+            <button class="btn btn-sm btn-link d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosCollapse" aria-expanded="false" aria-controls="filtrosCollapse">
+                <i class="fas fa-filter"></i> Mostrar/Ocultar
+            </button>
+        </div>
+        <div class="card-body collapse show filter-section" id="filtrosCollapse">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="filtroTexto" class="form-label">Buscar:</label>
+                    <input type="text" id="filtroTexto" class="form-control" placeholder="Profesor o nombre de clase...">
+                </div>
+                <div class="col-md-4">
+                    <label for="filtroDia" class="form-label">Día:</label>
+                    <select id="filtroDia" class="form-select">
+                        <option value="">Todos los días</option>
+                        {% for dia_id, dia_nombre in dias_semana.items() %}
+                        <option value="{{ dia_id }}">{{ dia_nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="filtroTipo" class="form-label">Tipo de Clase:</label>
+                    <select id="filtroTipo" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        <option value="MOVE">MOVE</option>
+                        <option value="RIDE">RIDE</option>
+                        <option value="BOX">BOX</option>
+                        <option value="OTRO">OTRO</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-3 text-end">
+                <button id="resetFiltros" class="btn btn-outline-secondary">
+                    <i class="fas fa-undo me-1"></i> Limpiar filtros
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3 d-md-none">
+        <div class="alert alert-info p-2">
+            <small><i class="fas fa-info-circle me-1"></i> Desliza horizontalmente para ver todos los datos</small>
+        </div>
+    </div>
+
+    <!-- Contadores por tipo de clase -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3 contador-card">
+            <div class="card bg-move text-white">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0" id="contadorMove">0</h4>
+                        <small>MOVE</small>
+                    </div>
+                    <i class="fas fa-running fa-2x"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 contador-card">
+            <div class="card bg-ride text-white">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0" id="contadorRide">0</h4>
+                        <small>RIDE</small>
+                    </div>
+                    <i class="fas fa-bicycle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 contador-card">
+            <div class="card bg-box text-white">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0" id="contadorBox">0</h4>
+                        <small>BOX</small>
+                    </div>
+                    <i class="fas fa-fist-raised fa-2x"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 contador-card">
+            <div class="card bg-secondary text-white">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0" id="contadorOtro">0</h4>
+                        <small>OTRO</small>
+                    </div>
+                    <i class="fas fa-question-circle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <form id="formEliminarHorarios" action="{{ url_for('eliminar_varios_horarios') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="tablaHorarios">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col" class="checkbox-column">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkboxTodos">
+                                    </div>
+                                </th>
+                                <th scope="col" class="d-none d-md-table-cell">ID</th>
+                                <th scope="col">Nombre</th>
+                                <th scope="col">Tipo</th>
+                                <th scope="col">Día</th>
+                                <th scope="col">Hora</th>
+                                <th scope="col" class="d-none d-md-table-cell">Duración</th>
+                                <th scope="col" class="d-none d-lg-table-cell">Capacidad</th>
+                                <th scope="col" class="d-none d-md-table-cell">Profesor</th>
+                                <th scope="col" class="actions-column">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for horario in horarios %}
+                            <tr class="clase-{{ horario.tipo_clase|lower }}" data-tipo="{{ horario.tipo_clase }}" data-dia="{{ horario.dia_semana }}">
+                                <td class="checkbox-column">
+                                    <div class="form-check">
+                                        <input class="form-check-input checkbox-horario" type="checkbox" name="horarios_ids[]" value="{{ horario.id }}">
+                                    </div>
+                                </td>
+                                <td class="d-none d-md-table-cell">{{ horario.id }}</td>
+                                <td>{{ horario.nombre }}</td>
+                                <td>
+                                    {% if horario.tipo_clase == 'MOVE' %}
+                                    <span class="badge bg-move">MOVE</span>
+                                    {% elif horario.tipo_clase == 'RIDE' %}
+                                    <span class="badge bg-ride">RIDE</span>
+                                    {% elif horario.tipo_clase == 'BOX' %}
+                                    <span class="badge bg-box">BOX</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">OTRO</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ horario.nombre_dia() }}</td>
+                                <td>{{ horario.hora_inicio.strftime('%H:%M') }}</td>
+                                <td class="d-none d-md-table-cell">{{ horario.duracion }} min</td>
+                                <td class="d-none d-lg-table-cell">{{ horario.capacidad_maxima }}</td>
+                                <td class="d-none d-md-table-cell">{{ horario.profesor.nombre }} {{ horario.profesor.apellido }}</td>
+                                <td class="actions-column">
+                                    <div class="btn-group action-buttons" role="group">
+                                        <a href="{{ url_for('editar_horario', id=horario.id) }}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('eliminar_horario', id=horario.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Está seguro que desea eliminar este horario? ADVERTENCIA: Si elimina este horario también se eliminarán todas las clases asociadas a él. Esta acción no se puede deshacer.')">
+                                            <i class="fas fa-trash-alt"></i> Eliminar
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div id="noResultados" class="alert alert-info m-3" style="display: none;">
+                        No se encontraron horarios que coincidan con los filtros seleccionados.
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No hay horarios de clases registrados aún. <a href="{{ url_for('nuevo_horario') }}" class="alert-link">Registre un nuevo horario</a>.
+    </div>
+    {% endif %}
+    
+    <!-- Horario semanal para pantallas grandes -->
+    <div class="card mt-4 d-none d-lg-block">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Horario semanal</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr class="table-dark">
+                            <th>Hora</th>
+                            {% for dia_id, dia_nombre in dias_semana.items() %}
+                            <th>{{ dia_nombre }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hora in range(6, 23) %}
+                        <tr>
+                            <td class="font-weight-bold">{{ '%02d'|format(hora) }}:00</td>
+                            {% for dia_id in range(7) %}
+                            <td>
+                                {% for h in horarios %}
+                                    {% if h.dia_semana == dia_id and h.hora_inicio.hour == hora %}
+                                    <div class="p-1 mb-1 border rounded clase-{{ h.tipo_clase|lower }}-bg">
+                                        <strong>{{ h.nombre }}</strong><br>
+                                        <span class="badge bg-{{ h.tipo_clase|lower }}">{{ h.tipo_clase }}</span><br>
+                                        {{ h.hora_inicio.strftime('%H:%M') }} - {{ h.hora_fin_str() }}<br>
+                                        <small>{{ h.profesor.nombre }} {{ h.profesor.apellido }}</small>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Horario por día para dispositivos móviles -->
+    <div class="card mt-4 d-lg-none">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Horario por día</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="accordion" id="accordionHorarioDias">
+                {% for dia_id, dia_nombre in dias_semana.items() %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ dia_id }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ dia_id }}" aria-expanded="false" aria-controls="collapse{{ dia_id }}">
+                            {{ dia_nombre }}
+                        </button>
+                    </h2>
+                    <div id="collapse{{ dia_id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ dia_id }}">
+                        <div class="accordion-body p-0">
+                            <div class="list-group list-group-flush">
+                                {% set clases_del_dia = false %}
+                                {% for h in horarios %}
+                                    {% if h.dia_semana|int == dia_id|int %}
+                                    {% set clases_del_dia = true %}
+                                    <a href="{{ url_for('editar_horario', id=h.id) }}" class="list-group-item list-group-item-action clase-{{ h.tipo_clase|lower }}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h5 class="mb-1">{{ h.nombre }}</h5>
+                                            <span class="badge bg-{{ h.tipo_clase|lower }}">{{ h.tipo_clase }}</span>
+                                        </div>
+                                        <p class="mb-1">{{ h.hora_inicio.strftime('%H:%M') }} - {{ h.hora_fin_str() }}</p>
+                                        <small>{{ h.profesor.nombre }} {{ h.profesor.apellido }}</small>
+                                    </a>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not clases_del_dia %}
+                                    <div class="list-group-item text-center text-muted py-3">
+                                        No hay clases programadas para este día
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="modalConfirmacionLabel"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>¿Está seguro que desea eliminar los <span id="countHorarios">0</span> horarios seleccionados?</strong></p>
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i><strong>ADVERTENCIA:</strong> Esta acción también eliminará todas las clases asociadas a los horarios seleccionados. Esta operación no se puede deshacer.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmarEliminacion">
+          <i class="fas fa-trash-alt me-1"></i> Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* Estilos para tipos de clase */
+    .bg-move {
+        background-color: #28a745 !important;
+    }
+    .bg-ride {
+        background-color: #007bff !important;
+    }
+    .bg-box {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Estilos para fondos de celda en el horario semanal */
+    .clase-move-bg {
+        background-color: rgba(40, 167, 69, 0.1);
+        border-left: 4px solid #28a745 !important;
+    }
+    .clase-ride-bg {
+        background-color: rgba(0, 123, 255, 0.1);
+        border-left: 4px solid #007bff !important;
+    }
+    .clase-box-bg {
+        background-color: rgba(220, 53, 69, 0.1);
+        border-left: 4px solid #dc3545 !important;
+    }
+    .clase-otro-bg {
+        background-color: rgba(108, 117, 125, 0.1);
+        border-left: 4px solid #6c757d !important;
+    }
+    
+    /* Estilos para filas de la tabla por tipo de clase */
+    tr.clase-move {
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+    tr.clase-move:hover {
+        background-color: rgba(40, 167, 69, 0.15);
+    }
+    
+    tr.clase-ride {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    tr.clase-ride:hover {
+        background-color: rgba(0, 123, 255, 0.15);
+    }
+    
+    tr.clase-box {
+        background-color: rgba(220, 53, 69, 0.05);
+    }
+    tr.clase-box:hover {
+        background-color: rgba(220, 53, 69, 0.15);
+    }
+    
+    /* Estilos responsive */
+    @media (max-width: 768px) {
+        .checkbox-column {
+            width: 44px;
+        }
+        
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .action-buttons .btn {
+            padding: 0.375rem 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        /* Ajustar tamaño para que quepan los botones */
+        .actions-column {
+            min-width: 95px;
+        }
+        
+        /* Ocultar algunos elementos del filtro en móviles */
+        .filter-section .row > div {
+            margin-bottom: 10px;
+        }
+        
+        /* Hacer que el horario semanal sea más usable en móviles */
+        .table-horario-semanal {
+            font-size: 0.8rem;
+        }
+        
+        .table-horario-semanal th,
+        .table-horario-semanal td {
+            padding: 0.25rem;
+        }
+        
+        /* Ajustar el tamaño de los contadores */
+        .contador-card {
+            margin-bottom: 10px;
+        }
+        
+        /* Hacer que el botón de eliminar seleccionados sea más visible */
+        #btnEliminarSeleccionados {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            border-radius: 50px;
+            padding: 10px 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+    }
+    
+    /* Resaltar filas seleccionadas */
+    tr.selected {
+        background-color: rgba(0, 123, 255, 0.1) !important;
+    }
+    
+    /* Estilos para eventos en móviles */
+    .event-box {
+        padding: 3px;
+        margin-bottom: 2px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+    }
+    
+    /* Mejorar visibilidad del scroll horizontal en móviles */
+    .table-responsive {
+        position: relative;
+    }
+    
+    .table-responsive::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.1));
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filtroTexto = document.getElementById('filtroTexto');
+    const filtroDia = document.getElementById('filtroDia');
+    const filtroTipo = document.getElementById('filtroTipo');
+    const resetFiltros = document.getElementById('resetFiltros');
+    const tablaHorarios = document.getElementById('tablaHorarios');
+    const noResultados = document.getElementById('noResultados');
+    const checkboxTodos = document.getElementById('checkboxTodos');
+    const checkboxes = document.querySelectorAll('.checkbox-horario');
+    const btnEliminarSeleccionados = document.getElementById('btnEliminarSeleccionados');
+    const btnEliminarSeleccionadosMobile = document.getElementById('btnEliminarSeleccionadosMobile');
+    const formEliminarHorarios = document.getElementById('formEliminarHorarios');
+    const modalConfirmacion = new bootstrap.Modal(document.getElementById('modalConfirmacion'));
+    const btnConfirmarEliminacion = document.getElementById('btnConfirmarEliminacion');
+    const countSpans = document.querySelectorAll('.count-selected');
+    const countHorarios = document.getElementById('countHorarios');
+    
+    // Contadores por tipo
+    let contadores = {
+        move: 0,
+        ride: 0,
+        box: 0,
+        otro: 0
+    };
+    
+    // Inicializar contadores
+    function actualizarContadores() {
+        // Reiniciar contadores
+        contadores = {
+            move: 0,
+            ride: 0,
+            box: 0,
+            otro: 0
+        };
+        
+        // Contar solo filas visibles
+        tablaHorarios.querySelectorAll('tbody tr').forEach(fila => {
+            if (fila.style.display !== 'none') {
+                const tipo = fila.dataset.tipo || 'OTRO';
+                switch(tipo) {
+                    case 'MOVE':
+                        contadores.move++;
+                        break;
+                    case 'RIDE':
+                        contadores.ride++;
+                        break;
+                    case 'BOX':
+                        contadores.box++;
+                        break;
+                    default:
+                        contadores.otro++;
+                }
+            }
+        });
+        
+        // Actualizar contadores en UI
+        document.getElementById('contadorMove').textContent = contadores.move;
+        document.getElementById('contadorRide').textContent = contadores.ride;
+        document.getElementById('contadorBox').textContent = contadores.box;
+        document.getElementById('contadorOtro').textContent = contadores.otro;
+    }
+    
+    // Función para filtrar tabla
+    function filtrarTabla() {
+        const texto = filtroTexto.value.toLowerCase();
+        const dia = filtroDia.value;
+        const tipo = filtroTipo.value;
+        
+        let filasVisibles = 0;
+        
+        tablaHorarios.querySelectorAll('tbody tr').forEach(fila => {
+            let mostrar = true;
+            
+            // Filtrar por texto
+            if (texto) {
+                const contenido = fila.textContent.toLowerCase();
+                if (!contenido.includes(texto)) {
+                    mostrar = false;
+                }
+            }
+            
+            // Filtrar por día
+            if (dia && mostrar) {
+                if (fila.dataset.dia !== dia) {
+                    mostrar = false;
+                }
+            }
+            
+            // Filtrar por tipo
+            if (tipo && mostrar) {
+                if (fila.dataset.tipo !== tipo) {
+                    mostrar = false;
+                }
+            }
+            
+            // Mostrar u ocultar fila
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) filasVisibles++;
+            
+            // Si la fila está oculta, deseleccionarla
+            if (!mostrar) {
+                const checkbox = fila.querySelector('.checkbox-horario');
+                if (checkbox && checkbox.checked) {
+                    checkbox.checked = false;
+                    actualizarEstiloFila(checkbox);
+                }
+            }
+        });
+        
+        // Mostrar mensaje si no hay resultados
+        noResultados.style.display = filasVisibles === 0 ? 'block' : 'none';
+        
+        // Actualizar contadores de tipos y el estado del botón eliminar
+        actualizarContadores();
+        actualizarBotonEliminar();
+    }
+    
+    // Función para actualizar el estilo de la fila
+    function actualizarEstiloFila(checkbox) {
+        const fila = checkbox.closest('tr');
+        if (checkbox.checked) {
+            fila.classList.add('selected');
+        } else {
+            fila.classList.remove('selected');
+        }
+    }
+    
+    // Función para actualizar visibilidad del botón de eliminar
+    function actualizarBotonEliminar() {
+        const seleccionados = Array.from(checkboxes).filter(checkbox => checkbox.checked).length;
+        
+        // Actualizar contadores
+        countSpans.forEach(span => {
+            span.textContent = seleccionados;
+        });
+        countHorarios.textContent = seleccionados;
+        
+        // Mostrar/ocultar botones
+        if (seleccionados > 0) {
+            btnEliminarSeleccionados.style.display = 'inline-block';
+            btnEliminarSeleccionadosMobile.style.display = 'inline-block';
+        } else {
+            btnEliminarSeleccionados.style.display = 'none';
+            btnEliminarSeleccionadosMobile.style.display = 'none';
+        }
+        
+        // Actualizar estado del checkbox "Todos"
+        const checkboxesVisibles = Array.from(checkboxes).filter(ch => ch.closest('tr').style.display !== 'none');
+        const seleccionadosVisibles = checkboxesVisibles.filter(ch => ch.checked).length;
+        
+        if (seleccionadosVisibles === 0) {
+            checkboxTodos.checked = false;
+            checkboxTodos.indeterminate = false;
+        } else if (seleccionadosVisibles === checkboxesVisibles.length) {
+            checkboxTodos.checked = true;
+            checkboxTodos.indeterminate = false;
+        } else {
+            checkboxTodos.checked = false;
+            checkboxTodos.indeterminate = true;
+        }
+    }
+    
+    // Event listeners para filtros
+    filtroTexto.addEventListener('input', filtrarTabla);
+    filtroDia.addEventListener('change', filtrarTabla);
+    filtroTipo.addEventListener('change', filtrarTabla);
+    
+    // Resetear filtros
+    resetFiltros.addEventListener('click', function() {
+        filtroTexto.value = '';
+        filtroDia.value = '';
+        filtroTipo.value = '';
+        filtrarTabla();
+    });
+    
+    // Seleccionar/deseleccionar todos
+    checkboxTodos.addEventListener('change', function() {
+        // Solo seleccionar los visibles
+        checkboxes.forEach(checkbox => {
+            const fila = checkbox.closest('tr');
+            if (fila.style.display !== 'none') {
+                checkbox.checked = checkboxTodos.checked;
+                actualizarEstiloFila(checkbox);
+            }
+        });
+        actualizarBotonEliminar();
+    });
+    
+    // Actualizar el estado del botón "Eliminar Seleccionados"
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            actualizarEstiloFila(this);
+            actualizarBotonEliminar();
+        });
+        
+        // Permitir seleccionar haciendo clic en la fila
+        checkbox.closest('tr').addEventListener('click', function(e) {
+            // No activar si se hace clic en un enlace, botón o en el propio checkbox
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                e.target.tagName === 'INPUT' || e.target.tagName === 'I' || 
+                e.target.closest('a') || e.target.closest('button')) {
+                return;
+            }
+            
+            const cb = this.querySelector('.checkbox-horario');
+            cb.checked = !cb.checked;
+            actualizarEstiloFila(cb);
+            actualizarBotonEliminar();
+        });
+    });
+    
+    // Mostrar modal de confirmación al hacer clic en "Eliminar Seleccionados"
+    btnEliminarSeleccionados.addEventListener('click', function() {
+        modalConfirmacion.show();
+    });
+    
+    btnEliminarSeleccionadosMobile.addEventListener('click', function() {
+        modalConfirmacion.show();
+    });
+    
+    // Enviar formulario al confirmar eliminación
+    btnConfirmarEliminacion.addEventListener('click', function() {
+        formEliminarHorarios.submit();
+    });
+    
+    // Inicializar contadores y estado al cargar la página
+    actualizarContadores();
+    actualizarBotonEliminar();
+    
+    // Manejar el colapso de filtros en móviles
+    const filtrosCollapse = document.getElementById('filtrosCollapse');
+    if (filtrosCollapse) {
+        filtrosCollapse.addEventListener('hidden.bs.collapse', function() {
+            // Ajustar el botón para indicar que está colapsado
+            const toggleButton = document.querySelector('[data-bs-target="#filtrosCollapse"]');
+            if (toggleButton) {
+                toggleButton.innerHTML = '<i class="fas fa-filter"></i> Mostrar filtros';
+            }
+        });
+        
+        filtrosCollapse.addEventListener('shown.bs.collapse', function() {
+            // Ajustar el botón para indicar que está expandido
+            const toggleButton = document.querySelector('[data-bs-target="#filtrosCollapse"]');
+            if (toggleButton) {
+                toggleButton.innerHTML = '<i class="fas fa-filter"></i> Ocultar filtros';
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 
